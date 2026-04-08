@@ -1,12 +1,14 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
+import axios from 'axios'
 import useLobbySocket from '../hooks/useLobbySocket'
 import LobbyGame from '../phaser/LobbyGame'
+import GameStartingOverlay from '../components/GameStartingOverlay'
 import styles from './LobbyScreen.module.css'
 
 export default function LobbyScreen({ roomData, playerData, onLeave }) {
-  const { players, connected } = useLobbySocket(roomData?.roomCode, playerData?.playerId)
+  const { players, connected, gameEvent } = useLobbySocket(roomData?.roomCode, playerData?.playerId)
+  const [starting, setStarting] = useState(false)
 
-  // Seed initial players from REST response
   const displayPlayers = players.length > 0
     ? players
     : (roomData?.playerIds || []).map(id => ({
@@ -15,12 +17,34 @@ export default function LobbyScreen({ roomData, playerData, onLeave }) {
         isHost: id === roomData?.hostPlayerId,
       }))
 
+  useEffect(() => {
+    if (gameEvent?.type === 'GAME_STARTING') {
+      setStarting(true)
+    }
+  }, [gameEvent])
+
+  const handleStartGame = async () => {
+    try {
+      await axios.post(`/api/game/${roomData.roomCode}/start`, {
+        playerId: playerData.playerId,
+      })
+    } catch (e) {
+      console.error('Failed to start game:', e)
+    }
+  }
+
   return (
     <div className={styles.container}>
-      {/* Phaser canvas sits behind */}
       <LobbyGame players={displayPlayers} />
 
-      {/* HUD overlay */}
+      {starting && gameEvent && (
+        <GameStartingOverlay
+          theme={gameEvent.theme}
+          synopsis={gameEvent.synopsis}
+          onDone={() => setStarting(false)} // Phase 3: navigate to game screen
+        />
+      )}
+
       <div className={styles.hud}>
         <div className={styles.roomInfo}>
           <span className={styles.label}>ROOM CODE</span>
@@ -55,7 +79,8 @@ export default function LobbyScreen({ roomData, playerData, onLeave }) {
           <button
             className="verdict-btn verdict-btn-primary"
             disabled={displayPlayers.length < 4}
-            title={displayPlayers.length < 4 ? 'Need at least 4 players' : 'Start the game!'}
+            onClick={handleStartGame}
+            title={displayPlayers.length < 4 ? 'Need at least 4 players' : 'Start!'}
           >
             {displayPlayers.length < 4
               ? `Waiting for ${4 - displayPlayers.length} more…`
