@@ -5,7 +5,7 @@ import LobbyGame from '../phaser/LobbyGame'
 import GameStartingOverlay from '../components/GameStartingOverlay'
 import styles from './LobbyScreen.module.css'
 
-const MIN_PLAYERS = 1 // dev: 1, prod: 4
+const MIN_PLAYERS = 1 // dev
 
 export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart }) {
   const { players, connected, gameEvent } = useLobbySocket(roomData?.roomCode, playerData?.playerId)
@@ -25,7 +25,6 @@ export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart
     if (gameEvent?.type === 'GAME_STARTING') {
       setCapturedEvent(gameEvent)
       setStarting(true)
-      // Navigate after cinematic (6.5s), pass theme+synopsis to GameScreen
       setTimeout(() => onGameStart(gameEvent.theme, gameEvent.synopsis), 6500)
     }
   }, [gameEvent])
@@ -33,12 +32,14 @@ export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart
   const handleStartGame = async () => {
     setStartError('')
     try {
+      // Send display names so AI uses real names not UUIDs
+      const playerNames = displayPlayers.map(p => p.playerName)
       await axios.post(`/api/game/${roomData.roomCode}/start`, {
         playerId: playerData.playerId,
+        playerNames,
       })
     } catch (e) {
-      const msg = e.response?.data?.error || e.message || 'Failed to start'
-      console.error('Start failed:', msg, '| playerId sent:', playerData.playerId)
+      const msg = e.response?.data?.error || e.message
       setStartError(msg)
     }
   }
@@ -49,65 +50,37 @@ export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart
   return (
     <div className={styles.container}>
       <LobbyGame players={displayPlayers} />
-
       {starting && capturedEvent && (
-        <GameStartingOverlay
-          theme={capturedEvent.theme}
-          synopsis={capturedEvent.synopsis}
-          onDone={() => setStarting(false)}
-        />
+        <GameStartingOverlay theme={capturedEvent.theme} synopsis={capturedEvent.synopsis} onDone={() => setStarting(false)} />
       )}
-
       <div className={styles.hud}>
         <div className={styles.roomInfo}>
           <span className={styles.label}>ROOM CODE</span>
           <span className={styles.code}>{roomData?.roomCode}</span>
-          <button
-            className={styles.copyBtn}
-            onClick={() => navigator.clipboard.writeText(roomData?.roomCode)}
-          >📋 Copy</button>
+          <button className={styles.copyBtn} onClick={() => navigator.clipboard.writeText(roomData?.roomCode)}>📋 Copy</button>
         </div>
-
         <div className={styles.status}>
           <span className={`${styles.dot} ${connected ? styles.connected : styles.disconnected}`} />
           {connected ? 'Live' : 'Connecting...'}
         </div>
-
         <div className={styles.players}>
-          <div className={styles.playersHeader}>
-            Players — {displayPlayers.length} / {roomData?.maxPlayers}
-          </div>
+          <div className={styles.playersHeader}>Players — {displayPlayers.length} / {roomData?.maxPlayers}</div>
           {displayPlayers.map(p => (
             <div key={p.playerId} className={styles.playerRow}>
               <span className={styles.avatar}>{p.playerName?.[0]?.toUpperCase() ?? '?'}</span>
-              <span className={styles.playerName}>
-                {p.playerName}
-                {p.isHost && <span className={styles.hostBadge}> 👑</span>}
-              </span>
+              <span className={styles.playerName}>{p.playerName}{p.isHost && <span className={styles.hostBadge}> 👑</span>}</span>
             </div>
           ))}
         </div>
-
         {playerData?.isHost && (
           <>
-            <button
-              className="verdict-btn verdict-btn-primary"
-              disabled={!canStart}
-              onClick={handleStartGame}
-            >
+            <button className="verdict-btn verdict-btn-primary" disabled={!canStart} onClick={handleStartGame}>
               {canStart ? '🚀 Start Game' : `Waiting for ${waiting} more…`}
             </button>
-            {startError && (
-              <p style={{ color: '#e63946', fontSize: '12px', marginTop: '6px', textAlign: 'center' }}>
-                ⚠️ {startError}
-              </p>
-            )}
+            {startError && <p style={{color:'#e63946',fontSize:'12px',marginTop:'6px',textAlign:'center'}}>⚠️ {startError}</p>}
           </>
         )}
-
-        <button className="verdict-btn verdict-btn-secondary" onClick={onLeave}>
-          Leave Room
-        </button>
+        <button className="verdict-btn verdict-btn-secondary" onClick={onLeave}>Leave Room</button>
       </div>
     </div>
   )
