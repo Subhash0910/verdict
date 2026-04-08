@@ -7,6 +7,8 @@ export default function App() {
   const [screen, setScreen] = useState('home')
   const [roomData, setRoomData] = useState(null)
   const [playerData, setPlayerData] = useState(null)
+  const [gameTheme, setGameTheme] = useState('')
+  const [gameSynopsis, setGameSynopsis] = useState('')
 
   const goToLobby = (room, player) => {
     setRoomData(room)
@@ -14,11 +16,17 @@ export default function App() {
     setScreen('lobby')
   }
 
-  const goToGame = () => setScreen('game')
+  const goToGame = (theme, synopsis) => {
+    if (theme) setGameTheme(theme)
+    if (synopsis) setGameSynopsis(synopsis)
+    setScreen('game')
+  }
 
   const goHome = () => {
     setRoomData(null)
     setPlayerData(null)
+    setGameTheme('')
+    setGameSynopsis('')
     setScreen('home')
   }
 
@@ -40,6 +48,8 @@ export default function App() {
           roomCode={roomData?.roomCode}
           playerId={playerData?.playerId}
           playerName={playerData?.playerName}
+          initialTheme={gameTheme}
+          initialSynopsis={gameSynopsis}
           onExit={goHome}
         />
       )}

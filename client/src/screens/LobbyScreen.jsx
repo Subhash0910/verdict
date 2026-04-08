@@ -11,6 +11,7 @@ export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart
   const { players, connected, gameEvent } = useLobbySocket(roomData?.roomCode, playerData?.playerId)
   const [starting, setStarting] = useState(false)
   const [startError, setStartError] = useState('')
+  const [capturedEvent, setCapturedEvent] = useState(null)
 
   const displayPlayers = players.length > 0
     ? players
@@ -22,8 +23,10 @@ export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart
 
   useEffect(() => {
     if (gameEvent?.type === 'GAME_STARTING') {
+      setCapturedEvent(gameEvent)
       setStarting(true)
-      setTimeout(() => onGameStart(), 6500)
+      // Navigate after cinematic (6.5s), pass theme+synopsis to GameScreen
+      setTimeout(() => onGameStart(gameEvent.theme, gameEvent.synopsis), 6500)
     }
   }, [gameEvent])
 
@@ -47,10 +50,10 @@ export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart
     <div className={styles.container}>
       <LobbyGame players={displayPlayers} />
 
-      {starting && gameEvent && (
+      {starting && capturedEvent && (
         <GameStartingOverlay
-          theme={gameEvent.theme}
-          synopsis={gameEvent.synopsis}
+          theme={capturedEvent.theme}
+          synopsis={capturedEvent.synopsis}
           onDone={() => setStarting(false)}
         />
       )}
@@ -91,7 +94,6 @@ export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart
               className="verdict-btn verdict-btn-primary"
               disabled={!canStart}
               onClick={handleStartGame}
-              title={!canStart ? `Need ${waiting} more player${waiting > 1 ? 's' : ''}` : 'Start!'}
             >
               {canStart ? '🚀 Start Game' : `Waiting for ${waiting} more…`}
             </button>
