@@ -32,7 +32,7 @@ public class GameSession {
     @Column(nullable = false)
     private GameStatus status;
 
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "session_players", joinColumns = @JoinColumn(name = "session_id"))
     @Column(name = "player_id")
     private List<String> playerIds = new ArrayList<>();
