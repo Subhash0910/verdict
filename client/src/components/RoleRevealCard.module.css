@@ -1,0 +1,151 @@
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 20px var(--glow), 0 0 60px var(--glow)33; }
+  50%       { box-shadow: 0 0 40px var(--glow), 0 0 100px var(--glow)55; }
+}
+
+.scene {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: radial-gradient(ellipse at center, #12001e 0%, #080810 70%);
+  padding: 32px;
+  gap: 28px;
+}
+
+.header { text-align: center; }
+
+.label {
+  font-size: 11px;
+  letter-spacing: 5px;
+  color: #555;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+/* ── Card flip ── */
+.card {
+  width: 280px;
+  height: 400px;
+  perspective: 1000px;
+  cursor: pointer;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card.flipped {
+  transform: rotateY(180deg);
+  animation: glowPulse 2s ease 0.7s infinite;
+}
+
+.cardFront,
+.cardBack {
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  backface-visibility: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 28px;
+  border: 1px solid #222;
+}
+
+.cardFront {
+  background: #0f0f18;
+  border-color: #333;
+  overflow: hidden;
+}
+
+.cardBack_pattern {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 10px,
+    rgba(255,255,255,0.02) 10px,
+    rgba(255,255,255,0.02) 20px
+  );
+}
+
+.tapHint {
+  font-size: 11px;
+  letter-spacing: 4px;
+  color: #444;
+  text-transform: uppercase;
+  z-index: 1;
+}
+
+.cardBack {
+  background: var(--bg);
+  border-color: var(--accent);
+  transform: rotateY(180deg);
+  animation: fadeUp 0.4s ease;
+}
+
+.roleIcon { font-size: 52px; }
+
+.roleName {
+  font-size: 32px;
+  font-weight: 900;
+  letter-spacing: 3px;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+
+.alignment {
+  font-size: 11px;
+  letter-spacing: 3px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 20px;
+  text-transform: uppercase;
+}
+
+.good  { background: rgba(45,198,83,0.15);  color: #2dc653; border: 1px solid #2dc653; }
+.evil  { background: rgba(230,57,70,0.15);   color: #e63946; border: 1px solid #e63946; }
+
+.missionLabel {
+  font-size: 9px;
+  letter-spacing: 4px;
+  color: #555;
+  text-transform: uppercase;
+  margin-top: 8px;
+}
+
+.mission {
+  font-size: 13px;
+  color: #ccc;
+  text-align: center;
+  line-height: 1.6;
+  font-style: italic;
+}
+
+.readyBtn {
+  background: transparent;
+  border: 1px solid #333;
+  color: #888;
+  padding: 12px 28px;
+  border-radius: 8px;
+  font-size: 13px;
+  letter-spacing: 2px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  animation: fadeUp 0.4s ease;
+}
+
+.readyBtn:hover {
+  border-color: var(--accent, #e63946);
+  color: #fff;
+}
