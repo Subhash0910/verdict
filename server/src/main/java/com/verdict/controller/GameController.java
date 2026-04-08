@@ -26,11 +26,9 @@ public class GameController {
     private final SimpMessagingTemplate messagingTemplate;
 
     private static final int MIN_PLAYERS = 1;
-    // World event fires between 45-90s into discussion
-    private static final int WORLD_EVENT_MIN_DELAY_MS = 45_000;
-    private static final int WORLD_EVENT_RANGE_MS     = 45_000;
 
-    /** POST /api/game/{roomCode}/start */
+    // ── Start ──────────────────────────────────────────────────────────────
+
     @PostMapping("/{roomCode}/start")
     public ResponseEntity<Map<String, String>> startGame(
             @PathVariable String roomCode,
@@ -41,9 +39,6 @@ public class GameController {
             return ResponseEntity.badRequest().body(Map.of("error", "Room not found: " + roomCode));
 
         String requestingPlayerId = (String) body.get("playerId");
-        log.info("Start: room={} requesting={} host={} status={}",
-                roomCode, requestingPlayerId, session.getHostPlayerId(), session.getStatus());
-
         if (!session.getHostPlayerId().equals(requestingPlayerId))
             return ResponseEntity.status(403).body(Map.of("error",
                     "Only host can start. Sent: " + requestingPlayerId + ", host: " + session.getHostPlayerId()));
@@ -57,7 +52,6 @@ public class GameController {
         session.setStatus(GameSession.GameStatus.IN_PROGRESS);
         sessionRepo.save(session);
 
-        // Use display names if available from request body, fallback to playerIds
         @SuppressWarnings("unchecked")
         List<String> displayNames = body.get("playerNames") instanceof List
                 ? (List<String>) body.get("playerNames")
@@ -66,58 +60,78 @@ public class GameController {
         var setup = gameMasterService.generateGameSetup(displayNames.size(), displayNames);
         gameStateService.storeSetup(roomCode, setup);
 
-        // Broadcast GAME_STARTING to lobby channel
         messagingTemplate.convertAndSend("/topic/lobby/" + roomCode, Map.of(
                 "type", "GAME_STARTING",
                 "theme", setup.getTheme(),
                 "synopsis", setup.getSynopsis()
         ));
 
-        // Sequence: roles after 1.5s → discussion after 35s (30s read time) → world event → vote after 180s
         new Thread(() -> {
             try {
+                // 1.5s → send private roles
                 Thread.sleep(1500);
-                // Send each player their private role
                 setup.getRoles().forEach(role ->
                     messagingTemplate.convertAndSend(
                         "/topic/game/" + roomCode + "/role/" + role.getPlayerName(),
                         Map.of(
                             "type", "ROLE_REVEAL",
-                            "roleName", role.getRoleName(),
-                            "alignment", role.getAlignment(),
+                            "roleName",     role.getRoleName(),
+                            "alignment",    role.getAlignment(),
                             "winCondition", role.getWinCondition(),
-                            "ability", role.getAbility(),
-                            "restriction", role.getRestriction()
+                            "ability",      role.getAbility(),
+                            "restriction",  role.getRestriction()
                         )
                     )
                 );
 
-                // 30s role reading silence, then discussion
+                // 30s role reading → ABILITY PHASE starts
                 Thread.sleep(30_000);
+                var state = gameStateService.getState(roomCode);
+                if (state != null) state.phase = "ABILITY";
                 messagingTemplate.convertAndSend("/topic/game/" + roomCode, Map.of(
-                    "type", "DISCUSSION_START",
-                    "durationSeconds", 180
+                    "type", "ABILITY_PHASE_START",
+                    "durationSeconds", 60
                 ));
 
-                // Fire world event at random point during discussion (45-90s in)
-                int eventDelay = WORLD_EVENT_MIN_DELAY_MS + new Random().nextInt(WORLD_EVENT_RANGE_MS);
-                Thread.sleep(eventDelay);
-                var state = gameStateService.getState(roomCode);
+                // 60s ability phase → DISCUSSION starts
+                Thread.sleep(60_000);
+                if (state != null) state.phase = "DISCUSSION";
+                List<String> abilityLog = state != null ? state.abilityLog : List.of();
+                messagingTemplate.convertAndSend("/topic/game/" + roomCode, Map.of(
+                    "type", "DISCUSSION_START",
+                    "durationSeconds", 180,
+                    "abilityLog", abilityLog
+                ));
+
+                // AI Observer note drops 60s into discussion
+                Thread.sleep(60_000);
+                if (state != null && "DISCUSSION".equals(state.phase) && !state.abilityLog.isEmpty()) {
+                    String observerNote = gameMasterService.generateObserverNote(
+                            setup.getTheme(), state.abilityLog);
+                    messagingTemplate.convertAndSend("/topic/game/" + roomCode + "/chat", Map.of(
+                        "playerName", "🔍 Observer",
+                        "text", observerNote,
+                        "isObserver", true
+                    ));
+                }
+
+                // World event fires between 60-120s into discussion
+                Thread.sleep(new Random().nextInt(60_000));
                 if (state != null && "DISCUSSION".equals(state.phase)) {
                     var event = gameMasterService.generateWorldEvent(
                             setup.getTheme(),
                             new java.util.ArrayList<>(state.alivePlayers)
                     );
                     messagingTemplate.convertAndSend("/topic/game/" + roomCode, Map.of(
-                        "type", "WORLD_EVENT",
-                        "title", event.getTitle(),
+                        "type",        "WORLD_EVENT",
+                        "title",       event.getTitle(),
                         "description", event.getDescription(),
-                        "effect", event.getEffect()
+                        "effect",      event.getEffect()
                     ));
                 }
 
-                // Voting starts after full 180s discussion
-                Thread.sleep(Math.max(0, 180_000 - eventDelay));
+                // Voting after 180s discussion
+                Thread.sleep(60_000);
                 if (state != null && "DISCUSSION".equals(state.phase)) {
                     state.phase = "VOTING";
                     messagingTemplate.convertAndSend("/topic/game/" + roomCode, Map.of(
@@ -128,11 +142,90 @@ public class GameController {
             } catch (InterruptedException ignored) {}
         }).start();
 
-        log.info("Game started for room {} — theme: '{}'", roomCode, setup.getTheme());
+        log.info("Game started: room={} theme='{}'", roomCode, setup.getTheme());
         return ResponseEntity.ok(Map.of("status", "started", "theme", setup.getTheme()));
     }
 
-    /** POST /api/game/{roomCode}/vote */
+    // ── Ability use ────────────────────────────────────────────────────────
+
+    @PostMapping("/{roomCode}/ability")
+    public ResponseEntity<Map<String, String>> useAbility(
+            @PathVariable String roomCode,
+            @RequestBody Map<String, String> body) {
+
+        String playerName = body.get("playerName");
+        String targetName = body.get("targetName"); // null = no target
+        String action     = body.get("action");     // "use" | "skip"
+
+        if ("skip".equals(action)) {
+            gameStateService.markAbilityPhaseSkipped(roomCode, playerName);
+            // Broadcast skip to chat so others know
+            messagingTemplate.convertAndSend("/topic/game/" + roomCode + "/chat", Map.of(
+                "playerName", "⚡ System",
+                "text", playerName + " chose not to use their ability this round.",
+                "isSystem", true
+            ));
+        } else {
+            String event = gameStateService.useAbility(roomCode, playerName, targetName);
+            if (event == null)
+                return ResponseEntity.badRequest().body(Map.of("error", "Ability already used"));
+
+            // Broadcast to ALL players — this is the public evidence
+            messagingTemplate.convertAndSend("/topic/game/" + roomCode + "/chat", Map.of(
+                "playerName", "⚡ System",
+                "text", event,
+                "isSystem", true
+            ));
+        }
+
+        // Check if all players have acted — if so, skip remaining ability timer
+        if (gameStateService.allPlayersActed(roomCode)) {
+            var state = gameStateService.getState(roomCode);
+            if (state != null) state.phase = "DISCUSSION";
+            messagingTemplate.convertAndSend("/topic/game/" + roomCode, Map.of(
+                "type", "DISCUSSION_START",
+                "durationSeconds", 180,
+                "abilityLog", gameStateService.getAbilityLog(roomCode)
+            ));
+        }
+
+        return ResponseEntity.ok(Map.of("status", "ok"));
+    }
+
+    // ── Accuse → triggers vote immediately ─────────────────────────────────
+
+    @PostMapping("/{roomCode}/accuse")
+    public ResponseEntity<Map<String, String>> accuse(
+            @PathVariable String roomCode,
+            @RequestBody Map<String, String> body) {
+
+        String accuserName = body.get("accuserName");
+        String targetName  = body.get("targetName");
+
+        var state = gameStateService.getState(roomCode);
+        if (state == null)
+            return ResponseEntity.badRequest().body(Map.of("error", "Room not found"));
+
+        // Announce accusation in chat
+        messagingTemplate.convertAndSend("/topic/game/" + roomCode + "/chat", Map.of(
+            "playerName", "🔴 Accusation",
+            "text", accuserName + " formally accuses " + targetName + " — a vote has been called!",
+            "isSystem", true
+        ));
+
+        // Move everyone to voting immediately
+        state.phase = "VOTING";
+        messagingTemplate.convertAndSend("/topic/game/" + roomCode, Map.of(
+            "type",   "VOTING_START",
+            "nominatedPlayer", targetName,
+            "calledBy", accuserName
+        ));
+
+        return ResponseEntity.ok(Map.of("status", "vote_called"));
+    }
+
+    // ── Vote ───────────────────────────────────────────────────────────────
+
     @PostMapping("/{roomCode}/vote")
     public ResponseEntity<Map<String, Object>> castVote(
             @PathVariable String roomCode,
@@ -148,31 +241,26 @@ public class GameController {
         if (result.allVoted()) {
             var elim = gameStateService.resolveElimination(roomCode);
             messagingTemplate.convertAndSend("/topic/game/" + roomCode, Map.of(
-                "type", "ELIMINATION",
-                "eliminatedId", elim.eliminatedId(),
+                "type",          "ELIMINATION",
+                "eliminatedId",  elim.eliminatedId(),
                 "eliminatedRole", elim.role(),
-                "alignment", elim.alignment(),
-                "gameOver", elim.gameOver(),
-                "winner", elim.winner()
+                "alignment",     elim.alignment(),
+                "gameOver",      elim.gameOver(),
+                "winner",        elim.winner()
             ));
 
-            // If game over, generate case file
             if (elim.gameOver()) {
                 var state = gameStateService.getState(roomCode);
                 new Thread(() -> {
                     try {
-                        Thread.sleep(4000); // after elimination reveal
+                        Thread.sleep(4000);
                         String caseFile = gameMasterService.generateCaseFile(
-                                state.theme,
-                                state.allPlayers,
-                                elim.traitorName(),
-                                elim.role(),
-                                elim.winner(),
-                                elim.eliminationOrder()
-                        );
+                                state.theme, state.allPlayers,
+                                elim.traitorName(), elim.role(),
+                                elim.winner(), elim.eliminationOrder());
                         messagingTemplate.convertAndSend("/topic/game/" + roomCode, Map.of(
-                            "type", "CASE_FILE",
-                            "text", caseFile,
+                            "type",   "CASE_FILE",
+                            "text",   caseFile,
                             "winner", elim.winner()
                         ));
                     } catch (InterruptedException ignored) {}
@@ -182,7 +270,8 @@ public class GameController {
         return ResponseEntity.ok(Map.of("status", "vote_cast"));
     }
 
-    /** POST /api/game/{roomCode}/spirit — dead player sends anonymous message */
+    // ── Spirit message ─────────────────────────────────────────────────────
+
     @PostMapping("/{roomCode}/spirit")
     public ResponseEntity<Map<String, String>> spiritMessage(
             @PathVariable String roomCode,
@@ -197,7 +286,8 @@ public class GameController {
         return ResponseEntity.ok(Map.of("status", "sent"));
     }
 
-    /** GET /api/game/{roomCode}/state */
+    // ── State ──────────────────────────────────────────────────────────────
+
     @GetMapping("/{roomCode}/state")
     public ResponseEntity<Object> getState(@PathVariable String roomCode) {
         return ResponseEntity.ok(gameStateService.getState(roomCode));

@@ -28,6 +28,38 @@ public class GameStateService {
                 roomCode, state.alivePlayers.size(), state.theme);
     }
 
+    /** Returns ability event text if used, null if already used */
+    public String useAbility(String roomCode, String playerName, String targetName) {
+        var state = getOrThrow(roomCode);
+        if (state.abilityUsed.contains(playerName)) return null; // already used
+        state.abilityUsed.add(playerName);
+        var role = state.roles.get(playerName);
+        String abilityName = role != null ? role.getAbility() : "their ability";
+        // Log it for Observer note
+        state.abilityLog.add(playerName + " used [" + abilityName + "] on " + targetName);
+        return playerName + " used their ability on " + targetName;
+    }
+
+    public boolean hasUsedAbility(String roomCode, String playerName) {
+        return getOrThrow(roomCode).abilityUsed.contains(playerName);
+    }
+
+    public List<String> getAbilityLog(String roomCode) {
+        return getOrThrow(roomCode).abilityLog;
+    }
+
+    public void markAbilityPhaseSkipped(String roomCode, String playerName) {
+        getOrThrow(roomCode).abilitySkipped.add(playerName);
+    }
+
+    public boolean allPlayersActed(String roomCode) {
+        var state = getOrThrow(roomCode);
+        Set<String> acted = new HashSet<>();
+        acted.addAll(state.abilityUsed);
+        acted.addAll(state.abilitySkipped);
+        return acted.containsAll(state.alivePlayers);
+    }
+
     public VoteResult castVote(String roomCode, String voterId, String targetId) {
         var state = getOrThrow(roomCode);
         state.votes.put(voterId, targetId);
@@ -51,6 +83,10 @@ public class GameStateService {
         state.eliminatedPlayers.add(eliminated);
         state.eliminationOrder.add(eliminated);
         state.votes.clear();
+        // Reset ability phase for next round
+        state.abilityUsed.clear();
+        state.abilitySkipped.clear();
+        state.abilityLog.clear();
 
         long evilAlive = state.alivePlayers.stream()
                 .filter(p -> "evil".equals(state.roles.get(p).getAlignment())).count();
@@ -60,7 +96,7 @@ public class GameStateService {
         boolean gameOver = evilAlive == 0 || evilAlive >= goodAlive;
         String winner = gameOver ? (evilAlive == 0 ? "good" : "evil") : "";
         if (gameOver) state.phase = "GAME_OVER";
-        else state.phase = "DISCUSSION";
+        else state.phase = "ABILITY"; // next round starts with ability phase
 
         String traitorName = state.allPlayers.stream()
                 .filter(p -> "evil".equals(state.roles.get(p).getAlignment()))
@@ -91,7 +127,7 @@ public class GameStateService {
         return s;
     }
 
-    // ── Types ───────────────────────────────────────────────────────────────
+    // ── Types ──────────────────────────────────────────────────────────────
 
     public static class GameState {
         public String theme;
@@ -99,16 +135,18 @@ public class GameStateService {
         public String phase;
         public GameMasterService.GameSetup.WinConditions winConditions;
         public Map<String, GameMasterService.GameSetup.PlayerRole> roles = new LinkedHashMap<>();
-        public Set<String> alivePlayers = new LinkedHashSet<>();
+        public Set<String> alivePlayers    = new LinkedHashSet<>();
         public Set<String> eliminatedPlayers = new LinkedHashSet<>();
-        public List<String> allPlayers = new ArrayList<>();
+        public List<String> allPlayers      = new ArrayList<>();
         public List<String> eliminationOrder = new ArrayList<>();
-        public Map<String, String> votes = new LinkedHashMap<>();
-        public List<String> spiritMessages = new ArrayList<>();
+        public Map<String, String> votes    = new LinkedHashMap<>();
+        public List<String> spiritMessages  = new ArrayList<>();
+        public Set<String> abilityUsed      = new LinkedHashSet<>();
+        public Set<String> abilitySkipped   = new LinkedHashSet<>();
+        public List<String> abilityLog      = new ArrayList<>();
     }
 
     public record VoteResult(Map<String, Long> voteCounts, boolean allVoted) {}
-
     public record EliminationResult(
             String eliminatedId, String role, String alignment,
             boolean gameOver, String winner,
