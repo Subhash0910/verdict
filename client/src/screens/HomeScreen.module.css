@@ -1,0 +1,88 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background: radial-gradient(ellipse at top, #1a0a2e 0%, #0a0a0f 60%);
+  gap: 40px;
+}
+
+.hero {
+  text-align: center;
+}
+
+.badge {
+  display: inline-block;
+  background: linear-gradient(135deg, #e63946, #7b2d8b);
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  margin-bottom: 16px;
+}
+
+.title {
+  font-size: clamp(64px, 12vw, 128px);
+  font-weight: 900;
+  letter-spacing: 12px;
+  background: linear-gradient(135deg, #fff 30%, #e63946 70%, #7b2d8b);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1;
+  margin-bottom: 12px;
+}
+
+.subtitle {
+  color: #888;
+  font-size: 16px;
+  letter-spacing: 0.5px;
+}
+
+.card {
+  background: rgba(26, 26, 46, 0.8);
+  border: 1px solid #2a2a3e;
+  border-radius: 16px;
+  padding: 32px;
+  width: 100%;
+  max-width: 400px;
+  backdrop-filter: blur(12px);
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form h2 {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.back {
+  background: none;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  font-size: 14px;
+  text-align: left;
+  padding: 0;
+}
+
+.back:hover { color: #f0f0f0; }
+
+.error {
+  color: #e63946;
+  font-size: 14px;
+}

@@ -1,0 +1,111 @@
+.container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.hud {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 300px;
+  height: 100vh;
+  background: rgba(10, 10, 15, 0.85);
+  border-left: 1px solid #2a2a3e;
+  backdrop-filter: blur(16px);
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow-y: auto;
+}
+
+.roomInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.label {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: #888;
+  font-weight: 600;
+}
+
+.code {
+  font-size: 32px;
+  font-weight: 900;
+  letter-spacing: 8px;
+  color: #00f5ff;
+  font-family: monospace;
+}
+
+.copyBtn {
+  background: none;
+  border: 1px solid #2a2a3e;
+  border-radius: 6px;
+  color: #888;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 4px 10px;
+  width: fit-content;
+  transition: all 0.2s;
+}
+
+.copyBtn:hover { border-color: #00f5ff; color: #00f5ff; }
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #888;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.connected { background: #00ff88; box-shadow: 0 0 6px #00ff88; }
+.disconnected { background: #e63946; }
+
+.players { display: flex; flex-direction: column; gap: 8px; flex: 1; }
+
+.playersHeader {
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: #888;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.playerRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 8px;
+  border: 1px solid #2a2a3e;
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #e63946, #7b2d8b);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.playerName { font-size: 14px; font-weight: 500; }
+.hostBadge { font-size: 12px; }

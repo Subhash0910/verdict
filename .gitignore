@@ -1,0 +1,29 @@
+# Maven
+server/target/
+server/.mvn/
+!server/.mvn/wrapper/
+
+# Node
+client/node_modules/
+client/dist/
+client/.vite/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.suo
+*.user
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+*.env.local
+server/src/main/resources/application-local.properties
+
+# Logs
+*.log
+logs/
