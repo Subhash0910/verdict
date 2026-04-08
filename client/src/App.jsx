@@ -1,11 +1,8 @@
 import React, { useState } from 'react'
 import HomeScreen from './screens/HomeScreen'
 import LobbyScreen from './screens/LobbyScreen'
+import GameScreen from './screens/GameScreen'
 
-/**
- * Simple screen-based router (no React Router needed for Phase 1).
- * screens: 'home' | 'lobby'
- */
 export default function App() {
   const [screen, setScreen] = useState('home')
   const [roomData, setRoomData] = useState(null)
@@ -17,6 +14,8 @@ export default function App() {
     setScreen('lobby')
   }
 
+  const goToGame = () => setScreen('game')
+
   const goHome = () => {
     setRoomData(null)
     setPlayerData(null)
@@ -26,11 +25,22 @@ export default function App() {
   return (
     <>
       {screen === 'home' && <HomeScreen onEnterLobby={goToLobby} />}
+
       {screen === 'lobby' && (
         <LobbyScreen
           roomData={roomData}
           playerData={playerData}
           onLeave={goHome}
+          onGameStart={goToGame}
+        />
+      )}
+
+      {screen === 'game' && (
+        <GameScreen
+          roomCode={roomData?.roomCode}
+          playerId={playerData?.playerId}
+          playerName={playerData?.playerName}
+          onExit={goHome}
         />
       )}
     </>

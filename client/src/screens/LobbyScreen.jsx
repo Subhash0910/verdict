@@ -5,7 +5,9 @@ import LobbyGame from '../phaser/LobbyGame'
 import GameStartingOverlay from '../components/GameStartingOverlay'
 import styles from './LobbyScreen.module.css'
 
-export default function LobbyScreen({ roomData, playerData, onLeave }) {
+const MIN_PLAYERS = 1 // dev: 1, prod: 4
+
+export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart }) {
   const { players, connected, gameEvent } = useLobbySocket(roomData?.roomCode, playerData?.playerId)
   const [starting, setStarting] = useState(false)
 
@@ -20,6 +22,8 @@ export default function LobbyScreen({ roomData, playerData, onLeave }) {
   useEffect(() => {
     if (gameEvent?.type === 'GAME_STARTING') {
       setStarting(true)
+      // After cinematic overlay (6s) navigate to GameScreen
+      setTimeout(() => onGameStart(), 6500)
     }
   }, [gameEvent])
 
@@ -33,6 +37,9 @@ export default function LobbyScreen({ roomData, playerData, onLeave }) {
     }
   }
 
+  const canStart = displayPlayers.length >= MIN_PLAYERS
+  const waiting = MIN_PLAYERS - displayPlayers.length
+
   return (
     <div className={styles.container}>
       <LobbyGame players={displayPlayers} />
@@ -41,7 +48,7 @@ export default function LobbyScreen({ roomData, playerData, onLeave }) {
         <GameStartingOverlay
           theme={gameEvent.theme}
           synopsis={gameEvent.synopsis}
-          onDone={() => setStarting(false)} // Phase 3: navigate to game screen
+          onDone={() => setStarting(false)}
         />
       )}
 
@@ -78,13 +85,11 @@ export default function LobbyScreen({ roomData, playerData, onLeave }) {
         {playerData?.isHost && (
           <button
             className="verdict-btn verdict-btn-primary"
-            disabled={displayPlayers.length < 4}
+            disabled={!canStart}
             onClick={handleStartGame}
-            title={displayPlayers.length < 4 ? 'Need at least 4 players' : 'Start!'}
+            title={!canStart ? `Need ${waiting} more player${waiting > 1 ? 's' : ''}` : 'Start!'}
           >
-            {displayPlayers.length < 4
-              ? `Waiting for ${4 - displayPlayers.length} more…`
-              : '🚀 Start Game'}
+            {canStart ? '🚀 Start Game' : `Waiting for ${waiting} more…`}
           </button>
         )}
 
