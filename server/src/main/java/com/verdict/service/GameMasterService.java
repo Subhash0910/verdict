@@ -27,10 +27,6 @@ public class GameMasterService {
     private static final String GEMINI_URL =
             "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=";
 
-    /**
-     * Generate a full game session for N players.
-     * Returns a GameSetup with roles, missions, and case metadata.
-     */
     public GameSetup generateGameSetup(int playerCount, List<String> playerNames) {
         if (geminiApiKey == null || geminiApiKey.isBlank()) {
             log.warn("GEMINI_API_KEY not set — using mock game setup");
@@ -84,13 +80,12 @@ public class GameMasterService {
                 - Every role must have a creative, specific secret mission
                 - Theme must be unique and dramatic
                 - Keep it fun and Gen Z appropriate
-                """.formatted(playerCount, String.join(", ", playerNames))
+                """.formatted(playerCount, String.join(", ", playerNames));
     }
 
     @SuppressWarnings("unchecked")
     private String extractText(Map<String, Object> response) {
-        var candidates = (List<Map<String, Object>>) response.get("candidates")
-        ;
+        var candidates = (List<Map<String, Object>>) response.get("candidates");
         var content = (Map<String, Object>) candidates.get(0).get("content");
         var parts = (List<Map<String, Object>>) content.get("parts");
         return (String) parts.get(0).get("text");
@@ -98,7 +93,6 @@ public class GameMasterService {
 
     private GameSetup parseGameSetup(String raw, List<String> playerNames) {
         try {
-            // Strip markdown code fences if present
             String cleaned = raw.replaceAll("```json", "").replaceAll("```", "").trim();
             return objectMapper.readValue(cleaned, GameSetup.class);
         } catch (Exception e) {
@@ -130,8 +124,6 @@ public class GameMasterService {
                         .build())
                 .build();
     }
-
-    // ── DTOs ────────────────────────────────────────────────────────────────
 
     @lombok.Data
     @lombok.Builder
