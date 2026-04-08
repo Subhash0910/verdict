@@ -10,6 +10,7 @@ const MIN_PLAYERS = 1 // dev: 1, prod: 4
 export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart }) {
   const { players, connected, gameEvent } = useLobbySocket(roomData?.roomCode, playerData?.playerId)
   const [starting, setStarting] = useState(false)
+  const [startError, setStartError] = useState('')
 
   const displayPlayers = players.length > 0
     ? players
@@ -22,18 +23,20 @@ export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart
   useEffect(() => {
     if (gameEvent?.type === 'GAME_STARTING') {
       setStarting(true)
-      // After cinematic overlay (6s) navigate to GameScreen
       setTimeout(() => onGameStart(), 6500)
     }
   }, [gameEvent])
 
   const handleStartGame = async () => {
+    setStartError('')
     try {
       await axios.post(`/api/game/${roomData.roomCode}/start`, {
         playerId: playerData.playerId,
       })
     } catch (e) {
-      console.error('Failed to start game:', e)
+      const msg = e.response?.data?.error || e.message || 'Failed to start'
+      console.error('Start failed:', msg, '| playerId sent:', playerData.playerId)
+      setStartError(msg)
     }
   }
 
@@ -83,14 +86,21 @@ export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart
         </div>
 
         {playerData?.isHost && (
-          <button
-            className="verdict-btn verdict-btn-primary"
-            disabled={!canStart}
-            onClick={handleStartGame}
-            title={!canStart ? `Need ${waiting} more player${waiting > 1 ? 's' : ''}` : 'Start!'}
-          >
-            {canStart ? '🚀 Start Game' : `Waiting for ${waiting} more…`}
-          </button>
+          <>
+            <button
+              className="verdict-btn verdict-btn-primary"
+              disabled={!canStart}
+              onClick={handleStartGame}
+              title={!canStart ? `Need ${waiting} more player${waiting > 1 ? 's' : ''}` : 'Start!'}
+            >
+              {canStart ? '🚀 Start Game' : `Waiting for ${waiting} more…`}
+            </button>
+            {startError && (
+              <p style={{ color: '#e63946', fontSize: '12px', marginTop: '6px', textAlign: 'center' }}>
+                ⚠️ {startError}
+              </p>
+            )}
+          </>
         )}
 
         <button className="verdict-btn verdict-btn-secondary" onClick={onLeave}>

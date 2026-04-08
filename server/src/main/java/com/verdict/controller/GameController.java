@@ -31,25 +31,36 @@ public class GameController {
             @RequestBody Map<String, Object> body) {
 
         GameSession session = sessionRepo.findByRoomCode(roomCode)
-                .orElseThrow(() -> new RuntimeException("Room not found"));
-
-        if (session.getStatus() != GameSession.GameStatus.WAITING) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Game already started"));
+                .orElse(null);
+        if (session == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Room not found: " + roomCode));
         }
 
         String requestingPlayerId = (String) body.get("playerId");
+        log.info("Start request: room={} requestingPlayer={} hostPlayer={} status={}",
+                roomCode, requestingPlayerId, session.getHostPlayerId(), session.getStatus());
+
         if (!session.getHostPlayerId().equals(requestingPlayerId)) {
-            return ResponseEntity.status(403).body(Map.of("error", "Only the host can start the game"));
+            log.warn("Not host! sent={} actual={}", requestingPlayerId, session.getHostPlayerId());
+            return ResponseEntity.status(403).body(Map.of(
+                "error", "Only the host can start. You sent: " + requestingPlayerId + ", host is: " + session.getHostPlayerId()));
+        }
+
+        // Allow restart if already IN_PROGRESS (dev convenience)
+        if (session.getStatus() == GameSession.GameStatus.ENDED) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Game already ended"));
         }
 
         if (session.getPlayerIds().size() < MIN_PLAYERS) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Not enough players"));
+            return ResponseEntity.badRequest().body(Map.of("error",
+                "Need at least " + MIN_PLAYERS + " player(s). Currently: " + session.getPlayerIds().size()));
         }
 
         session.setStatus(GameSession.GameStatus.IN_PROGRESS);
         sessionRepo.save(session);
 
-        log.info("AI GM generating setup for room {} with {} players", roomCode, session.getPlayerIds().size());
+        log.info("AI GM generating setup for room {} with {} players: {}",
+                roomCode, session.getPlayerIds().size(), session.getPlayerIds());
         var setup = gameMasterService.generateGameSetup(
                 session.getPlayerIds().size(),
                 session.getPlayerIds()
@@ -57,14 +68,12 @@ public class GameController {
 
         gameStateService.storeSetup(roomCode, setup);
 
-        // Broadcast theme + synopsis to all in lobby
         messagingTemplate.convertAndSend("/topic/lobby/" + roomCode, Map.of(
                 "type", "GAME_STARTING",
                 "theme", setup.getTheme(),
                 "synopsis", setup.getSynopsis()
         ));
 
-        // After 1.5s send individual role reveals on game channel
         new Thread(() -> {
             try { Thread.sleep(1500); } catch (InterruptedException ignored) {}
             setup.getRoles().forEach(role ->
@@ -78,7 +87,6 @@ public class GameController {
                     )
                 )
             );
-            // Start discussion phase 8s after role reveal
             try { Thread.sleep(8000); } catch (InterruptedException ignored) {}
             messagingTemplate.convertAndSend("/topic/game/" + roomCode, Map.of(
                 "type", "DISCUSSION_START",
