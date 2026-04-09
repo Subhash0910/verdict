@@ -1,78 +1,97 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import styles from './ConfessionBooth.module.css'
-import { SFX, screenShake, flashScreen } from '../hooks/useSound'
+import { useSound } from '../hooks/useSound'
 
-export default function ConfessionBooth({ players, myPlayerName, usedConfession, onDemand, onClose }) {
+// Shown to the DEMANDER — pick a target + type a yes/no question
+export function ConfessionDemand({ players, myPlayerName, onDemand, used }) {
   const [target, setTarget] = useState(null)
   const [question, setQuestion] = useState('')
-  const [step, setStep] = useState('pick') // pick | question
-
+  const [sent, setSent] = useState(false)
+  const sound = useSound()
   const others = players.filter(p => p.playerName !== myPlayerName && p.isAlive !== false)
 
-  function handleDemand() {
-    if (!target || !question.trim()) return
-    SFX.gavel()
-    flashScreen('rgba(230,57,70,0.3)', 200)
-    screenShake(6, 300)
+  function submit() {
+    if (!target || !question.trim() || sent || used) return
+    sound.play('gavel')
+    setSent(true)
     onDemand(target, question.trim())
-    onClose()
+  }
+
+  if (used || sent) return (
+    <div className={styles.usedBadge}>🏛️ Confession used this round</div>
+  )
+
+  return (
+    <div className={styles.demandWrap}>
+      <div className={styles.demandTitle}>🏛️ DEMAND CONFESSION</div>
+      <div className={styles.targetRow}>
+        {others.map(p => (
+          <button
+            key={p.playerName}
+            className={`${styles.targetChip} ${target === p.playerName ? styles.chipSelected : ''}`}
+            onClick={() => setTarget(p.playerName)}
+          >
+            {p.playerName}
+          </button>
+        ))}
+      </div>
+      <div className={styles.questionRow}>
+        <input
+          className={styles.questionInput}
+          placeholder="Ask a YES or NO question..."
+          value={question}
+          onChange={e => setQuestion(e.target.value)}
+          maxLength={80}
+          onKeyDown={e => e.key === 'Enter' && submit()}
+        />
+        <button
+          className={styles.demandBtn}
+          disabled={!target || !question.trim()}
+          onClick={submit}
+        >
+          Demand
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// Full-screen overlay shown to the player being FORCED to confess
+export function ConfessionPrompt({ confession, myPlayerName, onAnswer }) {
+  const [answered, setAnswered] = useState(false)
+  const sound = useSound()
+
+  useEffect(() => {
+    if (confession?.targetName === myPlayerName) {
+      sound.play('gavel')
+      // Vibrate if mobile
+      if (navigator.vibrate) navigator.vibrate([200, 100, 200])
+    }
+  }, [confession])
+
+  if (!confession || confession.targetName !== myPlayerName || answered) return null
+
+  function answer(val) {
+    sound.play('slam')
+    setAnswered(true)
+    onAnswer(val)
   }
 
   return (
-    <div className={styles.overlay} onClick={onClose}>
-      <div className={styles.modal} onClick={e => e.stopPropagation()}>
-        <div className={styles.header}>
-          <div className={styles.title}>🎤 CONFESSION BOOTH</div>
-          <div className={styles.subtitle}>Force someone to answer publicly. One use per game.</div>
+    <div className={styles.promptOverlay}>
+      <div className={styles.promptCard}>
+        <div className={styles.promptHeader}>🏛️ YOU HAVE BEEN CALLED TO CONFESS</div>
+        <div className={styles.promptAsker}>{confession.askerName} demands to know:</div>
+        <div className={styles.promptQuestion}>“{confession.question}”</div>
+        <div className={styles.promptSubtext}>Everyone is watching. Answer honestly.</div>
+        <div className={styles.answerBtns}>
+          <button className={`${styles.answerBtn} ${styles.yes}`} onClick={() => answer('YES')}>
+            ✅ YES
+          </button>
+          <button className={`${styles.answerBtn} ${styles.no}`} onClick={() => answer('NO')}>
+            ❌ NO
+          </button>
         </div>
-
-        {step === 'pick' && (
-          <>
-            <div className={styles.sectionLabel}>Who do you want to put on the stand?</div>
-            <div className={styles.playerGrid}>
-              {others.map(p => (
-                <button
-                  key={p.playerName}
-                  className={`${styles.playerBtn} ${target === p.playerName ? styles.selected : ''}`}
-                  onClick={() => { setTarget(p.playerName); setStep('question') }}
-                >
-                  <span className={styles.avatar}>{p.playerName[0].toUpperCase()}</span>
-                  <span>{p.playerName}</span>
-                </button>
-              ))}
-            </div>
-          </>
-        )}
-
-        {step === 'question' && (
-          <>
-            <div className={styles.sectionLabel}>
-              Ask <strong style={{color:'#e63946'}}>{target}</strong> a yes/no question:
-            </div>
-            <input
-              className={styles.questionInput}
-              placeholder="Are you working against us?"
-              value={question}
-              onChange={e => setQuestion(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleDemand()}
-              autoFocus
-              maxLength={80}
-            />
-            <div className={styles.hint}>They MUST answer YES or NO. Publicly. No skipping.</div>
-            <div className={styles.actions}>
-              <button className={styles.backBtn} onClick={() => setStep('pick')}>← Back</button>
-              <button
-                className={styles.demandBtn}
-                disabled={!question.trim()}
-                onClick={handleDemand}
-              >
-                🔨 Demand Confession
-              </button>
-            </div>
-          </>
-        )}
-
-        <button className={styles.closeBtn} onClick={onClose}>Cancel</button>
       </div>
     </div>
   )
