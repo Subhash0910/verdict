@@ -4,7 +4,8 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   define: {
-    global: 'globalThis', // fix sockjs-client 'global is not defined' in browser
+    global: 'globalThis',
+    __BUILD_TIME__: JSON.stringify(Date.now().toString()),
   },
   server: {
     port: 5173,
@@ -18,6 +19,11 @@ export default defineConfig({
         ws: true,
         changeOrigin: true,
       },
+    },
+    hmr: {
+      protocol: 'ws',
+      host: 'localhost',
+      port: 5173,
     },
   },
 })
