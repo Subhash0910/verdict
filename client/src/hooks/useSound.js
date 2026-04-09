@@ -1,8 +1,14 @@
 // Web Audio API sound engine — zero files needed, all generated tones
+// Mute gate: reads window.__verdictMuted (set by SoundContext)
 const ctx = typeof window !== 'undefined' ? new (window.AudioContext || window.webkitAudioContext)() : null
+
+function isMuted() {
+  return typeof window !== 'undefined' && window.__verdictMuted === true
+}
 
 function play(type) {
   if (!ctx) return
+  if (isMuted()) return          // ← single global gate
   if (ctx.state === 'suspended') ctx.resume()
   const g = ctx.createGain()
   g.connect(ctx.destination)
@@ -158,7 +164,7 @@ function play(type) {
   }
 }
 
-// ── Convenience helpers ─────────────────────────────────────────────────────
+// ── Convenience helpers ───────────────────────────────────────────────────────────────────
 
 /** screenShake — CSS translate shake on document.body */
 export function screenShake(intensity = 8, duration = 400) {
@@ -188,40 +194,39 @@ export function flashScreen(color = 'rgba(255,255,255,0.4)', duration = 150) {
   })
 }
 
-// Main hook — call useSound() to get all play methods
 export const sound = { play }
 
 export const SFX = {
-  tick:       () => play('tick'),
-  whoosh:     () => play('whoosh'),
-  slam:       () => play('slam'),
-  heartbeat:  () => play('heartbeat'),
-  gavel:      () => play('gavel'),
-  boom:       () => play('boom'),
-  elimination:() => play('elimination'),
-  reveal:     () => play('reveal'),
-  ding:       () => play('ding'),
-  trustDrop:  () => play('trust_drop'),
-  trustRise:  () => play('trust_rise'),
-  voteFlip:   () => play('vote_flip'),
-  accusation: () => play('accusation'),
+  tick:        () => play('tick'),
+  whoosh:      () => play('whoosh'),
+  slam:        () => play('slam'),
+  heartbeat:   () => play('heartbeat'),
+  gavel:       () => play('gavel'),
+  boom:        () => play('boom'),
+  elimination: () => play('elimination'),
+  reveal:      () => play('reveal'),
+  ding:        () => play('ding'),
+  trustDrop:   () => play('trust_drop'),
+  trustRise:   () => play('trust_rise'),
+  voteFlip:    () => play('vote_flip'),
+  accusation:  () => play('accusation'),
 }
 
 export function useSound() {
   return {
     play,
-    playTick:      () => play('tick'),
-    playWhoosh:    () => play('whoosh'),
-    playSlam:      () => play('slam'),
-    playHeartbeat: () => play('heartbeat'),
-    playGavel:     () => play('gavel'),
-    playBoom:      () => play('boom'),
-    playElimination:()=> play('elimination'),
-    playReveal:    () => play('reveal'),
-    playDing:      () => play('ding'),
-    playTrustDrop: () => play('trust_drop'),
-    playTrustRise: () => play('trust_rise'),
-    playVoteFlip:  () => play('vote_flip'),
-    playAccusation:() => play('accusation'),
+    playTick:       () => play('tick'),
+    playWhoosh:     () => play('whoosh'),
+    playSlam:       () => play('slam'),
+    playHeartbeat:  () => play('heartbeat'),
+    playGavel:      () => play('gavel'),
+    playBoom:       () => play('boom'),
+    playElimination:() => play('elimination'),
+    playReveal:     () => play('reveal'),
+    playDing:       () => play('ding'),
+    playTrustDrop:  () => play('trust_drop'),
+    playTrustRise:  () => play('trust_rise'),
+    playVoteFlip:   () => play('vote_flip'),
+    playAccusation: () => play('accusation'),
   }
 }

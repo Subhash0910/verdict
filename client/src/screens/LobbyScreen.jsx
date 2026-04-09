@@ -4,18 +4,19 @@ import useLobbySocket from '../hooks/useLobbySocket'
 import LobbyGame from '../phaser/LobbyGame'
 import GameStartingOverlay from '../components/GameStartingOverlay'
 import RoomQR from '../components/RoomQR'
+import { useSoundContext } from '../context/SoundContext'
 import styles from './LobbyScreen.module.css'
 
-// Set to 4 for production; 1 only for local dev testing
 const MIN_PLAYERS = 4
 
 export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart }) {
   const { players, connected, gameEvent } = useLobbySocket(roomData?.roomCode, playerData?.playerId)
-  const [starting, setStarting] = useState(false)
+  const [starting, setStarting]     = useState(false)
   const [startError, setStartError] = useState('')
   const [capturedEvent, setCapturedEvent] = useState(null)
-  const [copied, setCopied] = useState(false)
-  const [showQR, setShowQR] = useState(false)
+  const [copied, setCopied]         = useState(false)
+  const [showQR, setShowQR]         = useState(false)
+  const { isMuted, toggleMute }     = useSoundContext()
 
   const displayPlayers = players.length > 0
     ? players
@@ -36,12 +37,9 @@ export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart
   const handleStartGame = async () => {
     setStartError('')
     try {
-      await axios.post(`/api/game/${roomData.roomCode}/start`, {
-        playerId: playerData.playerId,
-      })
+      await axios.post(`/api/game/${roomData.roomCode}/start`, { playerId: playerData.playerId })
     } catch (e) {
-      const msg = e.response?.data?.error || e.message
-      setStartError(msg)
+      setStartError(e.response?.data?.error || e.message)
     }
   }
 
@@ -54,18 +52,24 @@ export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart
   }
 
   const canStart = displayPlayers.length >= MIN_PLAYERS
-  const waiting = MIN_PLAYERS - displayPlayers.length
+  const waiting  = MIN_PLAYERS - displayPlayers.length
 
   return (
     <div className={styles.container}>
       <LobbyGame players={displayPlayers} />
       {starting && capturedEvent && (
-        <GameStartingOverlay theme={capturedEvent.theme} synopsis={capturedEvent.synopsis} onDone={() => setStarting(false)} />
+        <GameStartingOverlay
+          theme={capturedEvent.theme}
+          synopsis={capturedEvent.synopsis}
+          onDone={() => setStarting(false)}
+        />
       )}
+
       <div className={styles.hud}>
         <div className={styles.roomInfo}>
           <span className={styles.label}>ROOM CODE</span>
           <span className={styles.code}>{roomData?.roomCode}</span>
+
           <div className={styles.shareRow}>
             <button className={styles.copyBtn} onClick={() => navigator.clipboard.writeText(roomData?.roomCode)}>
               📋 Copy Code
@@ -76,21 +80,28 @@ export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart
             <button
               className={`${styles.copyBtn} ${showQR ? styles.qrActive : ''}`}
               onClick={() => setShowQR(v => !v)}
-              title="Show QR code to scan and join"
+              title="Show QR code"
             >
               {showQR ? '❌ Hide QR' : '📷 QR Code'}
             </button>
           </div>
 
-          {/* QR Panel — slides in below share row */}
-          {showQR && (
-            <RoomQR roomCode={roomData?.roomCode} size={180} />
-          )}
+          {showQR && <RoomQR roomCode={roomData?.roomCode} size={180} />}
         </div>
+
+        {/* Status bar with connection dot + mute toggle */}
         <div className={styles.status}>
           <span className={`${styles.dot} ${connected ? styles.connected : styles.disconnected}`} />
           {connected ? 'Live' : 'Connecting...'}
+          <button
+            className={`${styles.muteBtn} ${isMuted ? styles.mutedActive : ''}`}
+            onClick={toggleMute}
+            title={isMuted ? 'Unmute sounds' : 'Mute sounds'}
+          >
+            {isMuted ? '🔇 Muted' : '🔊 Sound On'}
+          </button>
         </div>
+
         <div className={styles.players}>
           <div className={styles.playersHeader}>Players — {displayPlayers.length} / {roomData?.maxPlayers}</div>
           {displayPlayers.map(p => (
@@ -110,14 +121,18 @@ export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart
             </div>
           )}
         </div>
+
         {playerData?.isHost && (
           <>
             <button className="verdict-btn verdict-btn-primary" disabled={!canStart} onClick={handleStartGame}>
               {canStart ? '🚀 Start Game' : `Need ${waiting} more player${waiting > 1 ? 's' : ''}`}
             </button>
-            {startError && <p style={{ color: '#e63946', fontSize: '12px', marginTop: '6px', textAlign: 'center' }}>⚠️ {startError}</p>}
+            {startError && (
+              <p style={{ color: '#e63946', fontSize: '12px', marginTop: '6px', textAlign: 'center' }}>⚠️ {startError}</p>
+            )}
           </>
         )}
+
         <button className="verdict-btn verdict-btn-secondary" onClick={onLeave}>Leave Room</button>
       </div>
     </div>
