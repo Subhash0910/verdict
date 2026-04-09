@@ -23,6 +23,7 @@ function useTypewriter(text, delay = 30, startNow = false) {
 
 export default function RoleRevealCard({ roleName, alignment, winCondition, ability, restriction, onReady }) {
   const [step, setStep] = useState(0) // 0=front, 1=name, 2=win, 3=ability, 4=restriction, 5=done
+  const [showParticles, setShowParticles] = useState(false)
   const colors = ALIGNMENT_COLORS[alignment] || ALIGNMENT_COLORS.good
 
   const twName        = useTypewriter(roleName,     28, step >= 1)
@@ -30,7 +31,6 @@ export default function RoleRevealCard({ roleName, alignment, winCondition, abil
   const twAbility     = useTypewriter(ability,      22, step >= 3)
   const twRestriction = useTypewriter(restriction,  22, step >= 4)
 
-  // Auto-advance steps with delays
   useEffect(() => {
     if (step === 0) return
     const delays = [0, 800, 1200 + (roleName?.length || 0) * 28, 1200 + (winCondition?.length || 0) * 22, 1200 + (ability?.length || 0) * 22]
@@ -41,22 +41,50 @@ export default function RoleRevealCard({ roleName, alignment, winCondition, abil
   }, [step])
 
   function handleReveal() {
-    if (step === 0) setStep(1)
+    if (step !== 0) return
+    // Fire particle burst on tap
+    setShowParticles(true)
+    setTimeout(() => setShowParticles(false), 900)
+    setStep(1)
   }
+
+  const particleCount = 24
+  const particleColor = colors.accent
 
   return (
     <div className={styles.scene} style={{ '--accent': colors.accent, '--glow': colors.glow, '--bg': colors.bg }}>
       <div className={styles.label}>YOUR ROLE — READ CAREFULLY</div>
 
-      <div className={`${styles.card} ${step > 0 ? styles.revealed : ''}`} onClick={handleReveal}>
-        {step === 0 && (
+      {/* Particle burst on flip */}
+      {showParticles && (
+        <div className={styles.particleWrap}>
+          {[...Array(particleCount)].map((_, i) => (
+            <div
+              key={i}
+              className={styles.particle}
+              style={{
+                '--angle': `${(i / particleCount) * 360}deg`,
+                '--color': particleColor,
+                '--delay': `${i * 20}ms`
+              }}
+            />
+          ))}
+        </div>
+      )}
+
+      <div className={styles.cardScene}>
+        <div
+          className={`${styles.card} ${step > 0 ? styles.revealed : ''}`}
+          onClick={handleReveal}
+        >
+          {/* FRONT */}
           <div className={styles.front}>
             <div className={styles.pattern} />
+            <div className={styles.tapIcon}>🎭</div>
             <span className={styles.tapHint}>TAP TO REVEAL</span>
           </div>
-        )}
 
-        {step > 0 && (
+          {/* BACK */}
           <div className={styles.back}>
             <div className={`${styles.alignBadge} ${styles[alignment]}`}>
               {alignment === 'evil' ? '☠ ANTAGONIST' : '✦ COOPERATOR'}
@@ -87,17 +115,17 @@ export default function RoleRevealCard({ roleName, alignment, winCondition, abil
               </div>
             )}
           </div>
-        )}
+        </div>
       </div>
 
       {step >= 5 && (
         <button className={styles.readyBtn} onClick={onReady}>
-          I understand — Let's play →
+          I understand — Let’s play →
         </button>
       )}
 
       <div className={styles.timer}>
-        {step === 0 ? 'Others cannot see your role' : step < 5 ? 'Reading your role...' : '30 seconds to plan'}
+        {step === 0 ? 'Others cannot see your role' : step < 5 ? 'Reading your role...' : '🔥 You’re ready. Don’t reveal your role.'}
       </div>
     </div>
   )
