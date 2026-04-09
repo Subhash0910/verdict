@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background -->
+  <rect width="512" height="512" rx="96" fill="#0a0a0f"/>
+
+  <!-- Outer glow ring -->
+  <circle cx="256" cy="256" r="200" fill="none" stroke="#7b2d8b" stroke-width="6" opacity="0.4"/>
+  <circle cx="256" cy="256" r="185" fill="none" stroke="#7b2d8b" stroke-width="2" opacity="0.2"/>
+
+  <!-- Scales of justice - beam -->
+  <rect x="236" y="148" width="40" height="10" rx="5" fill="#7b2d8b"/>
+  <!-- Pillar -->
+  <rect x="251" y="155" width="10" height="130" rx="5" fill="#7b2d8b"/>
+  <!-- Base -->
+  <rect x="196" y="285" width="120" height="10" rx="5" fill="#7b2d8b"/>
+
+  <!-- Left pan chain -->
+  <line x1="178" y1="155" x2="178" y2="210" stroke="#7b2d8b" stroke-width="3" opacity="0.8"/>
+  <!-- Right pan chain -->
+  <line x1="334" y1="155" x2="334" y2="195" stroke="#7b2d8b" stroke-width="3" opacity="0.8"/>
+
+  <!-- Left pan (tilted slightly - justice is never perfect) -->
+  <ellipse cx="178" cy="222" rx="46" ry="12" fill="none" stroke="#c77dff" stroke-width="3"/>
+
+  <!-- Right pan (higher) -->
+  <ellipse cx="334" cy="207" rx="46" ry="12" fill="none" stroke="#e63946" stroke-width="3"/>
+
+  <!-- Scale arms -->
+  <line x1="240" y1="152" x2="178" y2="158" stroke="#9b59b6" stroke-width="3" stroke-linecap="round"/>
+  <line x1="272" y1="152" x2="334" y2="145" stroke="#9b59b6" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- VERDICT text -->
+  <text x="256" y="350" text-anchor="middle"
+        font-family="system-ui, -apple-system, sans-serif"
+        font-size="52" font-weight="900" letter-spacing="8"
+        fill="#ffffff">
+    VERDICT
+  </text>
+
+  <!-- Subtitle -->
+  <text x="256" y="385" text-anchor="middle"
+        font-family="system-ui, -apple-system, sans-serif"
+        font-size="18" letter-spacing="6"
+        fill="#7b2d8b" opacity="0.8">
+    SOCIAL DEDUCTION
+  </text>
+</svg>

@@ -1,42 +1,70 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { v4 as uuidv4 } from 'uuid'
 import { createRoom, joinRoom } from '../api/roomApi'
 import styles from './HomeScreen.module.css'
 
 const HOW_TO_PLAY_STEPS = [
   {
-    emoji: '🎭',
+    emoji: '\uD83C\uDFAD',
     title: 'Secret Roles',
-    desc: 'Everyone gets a unique AI-generated role — Cooperator or Antagonist. Only you see yours.'
+    desc: 'Everyone gets a unique AI-generated role \u2014 Cooperator or Antagonist. Only you see yours.'
   },
   {
-    emoji: '⚡',
+    emoji: '\u26A1',
     title: 'Use Your Ability',
-    desc: 'Each role has a special one-time ability. Spy on someone, plant evidence, swap votes — use it wisely.'
+    desc: 'Each role has a special one-time ability. Spy on someone, plant evidence, swap votes \u2014 use it wisely.'
   },
   {
-    emoji: '💬',
+    emoji: '\uD83D\uDCAC',
     title: 'Discuss & Deceive',
     desc: 'Chat with everyone. Accuse suspects. Demand confessions. Watch the Trust Meter shift in real-time.'
   },
   {
-    emoji: '🗳️',
+    emoji: '\uD83D\uDDF3\uFE0F',
     title: 'Vote & Win',
     desc: 'Nominate and vote out players. Cooperators win by removing all Antagonists. Antagonists win by surviving.'
   }
 ]
 
-export default function HomeScreen({ onEnterLobby }) {
-  const [mode, setMode] = useState(null) // 'create' | 'join'
-  const [name, setName] = useState('')
+export default function HomeScreen({ onRoomReady, onEnterLobby }) {
+  // Accept both prop names for compatibility
+  const handleRoomReady = onRoomReady || onEnterLobby
+
+  const [mode, setMode]       = useState(null)  // 'create' | 'join'
+  const [name, setName]       = useState('')
   const [roomCode, setRoomCode] = useState('')
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [showHowTo, setShowHowTo] = useState(false)
-  const [howToStep, setHowToStep] = useState(0)
+  const [error, setError]     = useState('')
+  const [showHowTo, setShowHowTo]   = useState(false)
+  const [howToStep, setHowToStep]   = useState(0)
 
-  // Check for ?join=CODE in URL — auto-fill join flow
-  React.useEffect(() => {
+  // Deep link + PWA shortcut autofill
+  // Priority: sessionStorage (set by App.jsx after stripping ?query) > URL param (fallback)
+  useEffect(() => {
+    // 1. Check sessionStorage first (App.jsx stores it before stripping the URL)
+    const ssJoin   = sessionStorage.getItem('verdict_autojoin')
+    const ssAction = sessionStorage.getItem('verdict_autoaction')
+
+    if (ssJoin) {
+      setRoomCode(ssJoin.toUpperCase())
+      setMode('join')
+      sessionStorage.removeItem('verdict_autojoin')
+      return
+    }
+
+    if (ssAction === 'create') {
+      setMode('create')
+      sessionStorage.removeItem('verdict_autoaction')
+      return
+    }
+
+    if (ssAction === 'join') {
+      setMode('join')
+      sessionStorage.removeItem('verdict_autoaction')
+      return
+    }
+
+    // 2. Fallback: read ?join= directly (e.g. if App.jsx hasn't stripped it yet)
     const params = new URLSearchParams(window.location.search)
     const code = params.get('join')
     if (code) {
@@ -45,7 +73,7 @@ export default function HomeScreen({ onEnterLobby }) {
     }
   }, [])
 
-  const playerId = React.useMemo(() => {
+  const playerId = useMemo(() => {
     let id = localStorage.getItem('verdict_player_id')
     if (!id) { id = uuidv4(); localStorage.setItem('verdict_player_id', id) }
     return id
@@ -56,7 +84,7 @@ export default function HomeScreen({ onEnterLobby }) {
     setLoading(true); setError('')
     try {
       const res = await createRoom(playerId, name.trim())
-      onEnterLobby(res.data, { playerId, playerName: name.trim(), isHost: true })
+      handleRoomReady(res.data, { playerId, playerName: name.trim(), isHost: true })
     } catch (e) {
       setError(e.response?.data?.error || 'Failed to create room')
     } finally { setLoading(false) }
@@ -68,7 +96,7 @@ export default function HomeScreen({ onEnterLobby }) {
     setLoading(true); setError('')
     try {
       const res = await joinRoom(roomCode.toUpperCase().trim(), playerId, name.trim())
-      onEnterLobby(res.data, { playerId, playerName: name.trim(), isHost: false })
+      handleRoomReady(res.data, { playerId, playerName: name.trim(), isHost: false })
     } catch (e) {
       setError(e.response?.data?.error || 'Room not found or full')
     } finally { setLoading(false) }
@@ -101,7 +129,7 @@ export default function HomeScreen({ onEnterLobby }) {
               {howToStep < HOW_TO_PLAY_STEPS.length - 1 ? (
                 <button className="verdict-btn verdict-btn-primary" onClick={() => setHowToStep(s => s + 1)}>Next →</button>
               ) : (
-                <button className="verdict-btn verdict-btn-primary" onClick={() => setShowHowTo(false)}>Let's Play 🔥</button>
+                <button className="verdict-btn verdict-btn-primary" onClick={() => setShowHowTo(false)}>Let's Play \uD83D\uDD25</button>
               )}
             </div>
           </div>
@@ -113,7 +141,7 @@ export default function HomeScreen({ onEnterLobby }) {
         <h1 className={styles.title}>VERDICT</h1>
         <p className={styles.subtitle}>Social deduction. AI Game Master. No two games alike.</p>
         <button className={styles.howToBtn} onClick={() => { setShowHowTo(true); setHowToStep(0) }}>
-          ❓ How to Play
+          \u2753 How to Play
         </button>
       </div>
 
@@ -121,10 +149,10 @@ export default function HomeScreen({ onEnterLobby }) {
         {!mode ? (
           <div className={styles.actions}>
             <button className="verdict-btn verdict-btn-primary" onClick={() => setMode('create')}>
-              🎮 Create Room
+              \uD83C\uDFAE Create Room
             </button>
             <button className="verdict-btn verdict-btn-secondary" onClick={() => setMode('join')}>
-              🔗 Join Room
+              \uD83D\uDD17 Join Room
             </button>
           </div>
         ) : (
@@ -137,6 +165,7 @@ export default function HomeScreen({ onEnterLobby }) {
               placeholder="Your display name"
               value={name}
               maxLength={20}
+              autoFocus
               onChange={e => setName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && (mode === 'create' ? handleCreate() : handleJoin())}
             />
@@ -148,7 +177,7 @@ export default function HomeScreen({ onEnterLobby }) {
                 value={roomCode}
                 maxLength={8}
                 style={{ textTransform: 'uppercase', letterSpacing: '4px' }}
-                onChange={e => setRoomCode(e.target.value)}
+                onChange={e => setRoomCode(e.target.value.toUpperCase())}
                 onKeyDown={e => e.key === 'Enter' && handleJoin()}
               />
             )}
