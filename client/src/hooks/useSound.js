@@ -32,14 +32,12 @@ function play(type) {
     }
 
     case 'slam': {
-      // Low thud
       const o = ctx.createOscillator()
       o.connect(g); g.gain.setValueAtTime(0.6, ctx.currentTime)
       o.type = 'sine'; o.frequency.setValueAtTime(120, ctx.currentTime)
       o.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 0.15)
       g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25)
       o.start(); o.stop(ctx.currentTime + 0.25)
-      // High crack
       const buf = ctx.createBuffer(1, ctx.sampleRate * 0.08, ctx.sampleRate)
       const d = buf.getChannelData(0)
       for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length)
@@ -76,8 +74,8 @@ function play(type) {
       break
     }
 
+    case 'boom':
     case 'elimination': {
-      // Dramatic descending chord
       [220, 277, 330].forEach((freq, i) => {
         const o = ctx.createOscillator()
         const g2 = ctx.createGain()
@@ -92,7 +90,6 @@ function play(type) {
     }
 
     case 'reveal': {
-      // Rising arpeggio
       [523, 659, 784, 1047].forEach((freq, i) => {
         const o = ctx.createOscillator()
         const g2 = ctx.createGain()
@@ -103,6 +100,15 @@ function play(type) {
         o.start(ctx.currentTime + i * 0.12)
         o.stop(ctx.currentTime + i * 0.12 + 0.4)
       })
+      break
+    }
+
+    case 'ding': {
+      const o = ctx.createOscillator()
+      o.connect(g); g.gain.setValueAtTime(0.3, ctx.currentTime)
+      o.type = 'sine'; o.frequency.setValueAtTime(1047, ctx.currentTime)
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5)
+      o.start(); o.stop(ctx.currentTime + 0.5)
       break
     }
 
@@ -136,7 +142,6 @@ function play(type) {
     }
 
     case 'accusation': {
-      // Alarm-like pulse x3
       [0, 0.15, 0.3].forEach(t => {
         const o = ctx.createOscillator()
         const g2 = ctx.createGain()
@@ -153,5 +158,70 @@ function play(type) {
   }
 }
 
+// ── Convenience helpers ─────────────────────────────────────────────────────
+
+/** screenShake — CSS translate shake on document.body */
+export function screenShake(intensity = 8, duration = 400) {
+  if (typeof document === 'undefined') return
+  const el = document.body
+  const start = performance.now()
+  function frame(now) {
+    const elapsed = now - start
+    if (elapsed >= duration) { el.style.transform = ''; return }
+    const dx = (Math.random() - 0.5) * intensity * (1 - elapsed / duration)
+    const dy = (Math.random() - 0.5) * intensity * (1 - elapsed / duration)
+    el.style.transform = `translate(${dx}px,${dy}px)`
+    requestAnimationFrame(frame)
+  }
+  requestAnimationFrame(frame)
+}
+
+/** flashScreen — brief colour flash overlay */
+export function flashScreen(color = 'rgba(255,255,255,0.4)', duration = 150) {
+  if (typeof document === 'undefined') return
+  const div = document.createElement('div')
+  div.style.cssText = `position:fixed;inset:0;z-index:9999;background:${color};pointer-events:none;transition:opacity ${duration}ms ease`
+  document.body.appendChild(div)
+  requestAnimationFrame(() => {
+    div.style.opacity = '0'
+    setTimeout(() => div.remove(), duration + 50)
+  })
+}
+
+// Main hook — call useSound() to get all play methods
 export const sound = { play }
-export function useSound() { return sound }
+
+export const SFX = {
+  tick:       () => play('tick'),
+  whoosh:     () => play('whoosh'),
+  slam:       () => play('slam'),
+  heartbeat:  () => play('heartbeat'),
+  gavel:      () => play('gavel'),
+  boom:       () => play('boom'),
+  elimination:() => play('elimination'),
+  reveal:     () => play('reveal'),
+  ding:       () => play('ding'),
+  trustDrop:  () => play('trust_drop'),
+  trustRise:  () => play('trust_rise'),
+  voteFlip:   () => play('vote_flip'),
+  accusation: () => play('accusation'),
+}
+
+export function useSound() {
+  return {
+    play,
+    playTick:      () => play('tick'),
+    playWhoosh:    () => play('whoosh'),
+    playSlam:      () => play('slam'),
+    playHeartbeat: () => play('heartbeat'),
+    playGavel:     () => play('gavel'),
+    playBoom:      () => play('boom'),
+    playElimination:()=> play('elimination'),
+    playReveal:    () => play('reveal'),
+    playDing:      () => play('ding'),
+    playTrustDrop: () => play('trust_drop'),
+    playTrustRise: () => play('trust_rise'),
+    playVoteFlip:  () => play('vote_flip'),
+    playAccusation:() => play('accusation'),
+  }
+}
