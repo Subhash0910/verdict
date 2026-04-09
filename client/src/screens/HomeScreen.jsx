@@ -4,17 +4,17 @@ import { createRoom, joinRoom, spectateRoom } from '../api/roomApi'
 import styles from './HomeScreen.module.css'
 
 const HOW_TO_PLAY_STEPS = [
-  { emoji: '\uD83C\uDFAD', title: 'Secret Roles', desc: 'Everyone gets a unique AI-generated role \u2014 Cooperator or Antagonist. Only you see yours.' },
-  { emoji: '\u26A1',       title: 'Use Your Ability', desc: 'Each role has a special one-time ability. Spy on someone, plant evidence, swap votes \u2014 use it wisely.' },
-  { emoji: '\uD83D\uDCAC', title: 'Discuss & Deceive', desc: 'Chat with everyone. Accuse suspects. Demand confessions. Watch the Trust Meter shift in real-time.' },
-  { emoji: '\uD83D\uDDF3\uFE0F', title: 'Vote & Win', desc: 'Nominate and vote out players. Cooperators win by removing all Antagonists. Antagonists win by surviving.' }
+  { emoji: '🎭', title: 'Secret Roles', desc: 'Everyone gets a unique AI-generated role — Cooperator or Antagonist. Only you see yours.' },
+  { emoji: '⚡', title: 'Use Your Ability', desc: 'Each role has a special one-time ability. Spy on someone, plant evidence, swap votes — use it wisely.' },
+  { emoji: '💬', title: 'Discuss & Deceive', desc: 'Chat with everyone. Accuse suspects. Demand confessions. Watch the Trust Meter shift in real-time.' },
+  { emoji: '🗳️', title: 'Vote & Win', desc: 'Nominate and vote out players. Cooperators win by removing all Antagonists. Antagonists win by surviving.' }
 ]
 
 export default function HomeScreen({ onRoomReady, onEnterLobby }) {
   const handleRoomReady = onRoomReady || onEnterLobby
 
-  const [mode, setMode]           = useState(null)   // 'create' | 'join'
-  const [joinType, setJoinType]   = useState('play')  // 'play' | 'watch'
+  const [mode, setMode]           = useState(null)
+  const [joinType, setJoinType]   = useState('play')
   const [name, setName]           = useState('')
   const [roomCode, setRoomCode]   = useState('')
   const [loading, setLoading]     = useState(false)
@@ -92,8 +92,8 @@ export default function HomeScreen({ onRoomReady, onEnterLobby }) {
             <div className={styles.modalActions}>
               {howToStep > 0 && <button className={styles.modalBack} onClick={() => setHowToStep(s => s - 1)}>← Back</button>}
               {howToStep < HOW_TO_PLAY_STEPS.length - 1
-                ? <button className="verdict-btn verdict-btn-primary" onClick={() => setHowToStep(s => s + 1)}>Next \u2192</button>
-                : <button className="verdict-btn verdict-btn-primary" onClick={() => setShowHowTo(false)}>Let's Play \uD83D\uDD25</button>
+                ? <button className="verdict-btn verdict-btn-primary" onClick={() => setHowToStep(s => s + 1)}>Next →</button>
+                : <button className="verdict-btn verdict-btn-primary" onClick={() => setShowHowTo(false)}>Let's Play 🔥</button>
               }
             </div>
           </div>
@@ -105,7 +105,7 @@ export default function HomeScreen({ onRoomReady, onEnterLobby }) {
         <h1 className={styles.title}>VERDICT</h1>
         <p className={styles.subtitle}>Social deduction. AI Game Master. No two games alike.</p>
         <button className={styles.howToBtn} onClick={() => { setShowHowTo(true); setHowToStep(0) }}>
-          \u2753 How to Play
+          ❓ How to Play
         </button>
       </div>
 
@@ -113,10 +113,10 @@ export default function HomeScreen({ onRoomReady, onEnterLobby }) {
         {!mode ? (
           <div className={styles.actions}>
             <button className="verdict-btn verdict-btn-primary" onClick={() => setMode('create')}>
-              \uD83C\uDFAE Create Room
+              🎮 Create Room
             </button>
             <button className="verdict-btn verdict-btn-secondary" onClick={() => setMode('join')}>
-              \uD83D\uDD17 Join Room
+              🔗 Join Room
             </button>
           </div>
         ) : (
@@ -124,20 +124,19 @@ export default function HomeScreen({ onRoomReady, onEnterLobby }) {
             <button className={styles.back} onClick={() => { setMode(null); setError(''); setJoinType('play') }}>← Back</button>
             <h2>{mode === 'create' ? 'Create a Room' : 'Join a Room'}</h2>
 
-            {/* Play / Watch toggle — only in join mode */}
             {mode === 'join' && (
               <div className={styles.joinTypeRow}>
                 <button
                   className={`${styles.joinTypeBtn} ${joinType === 'play' ? styles.joinTypeActive : ''}`}
                   onClick={() => setJoinType('play')}
                 >
-                  \uD83C\uDFAE Play
+                  🎮 Play
                 </button>
                 <button
                   className={`${styles.joinTypeBtn} ${joinType === 'watch' ? styles.joinTypeActive : ''}`}
                   onClick={() => setJoinType('watch')}
                 >
-                  \uD83D\uDC41 Watch
+                  👁 Watch
                 </button>
               </div>
             )}
@@ -175,7 +174,7 @@ export default function HomeScreen({ onRoomReady, onEnterLobby }) {
                 ? 'Loading...'
                 : mode === 'create'
                   ? 'Create Room'
-                  : joinType === 'watch' ? '\uD83D\uDC41 Watch Game' : 'Join Room'
+                  : joinType === 'watch' ? '👁 Watch Game' : 'Join Room'
               }
             </button>
 

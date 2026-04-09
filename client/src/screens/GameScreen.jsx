@@ -81,14 +81,11 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
       webSocketFactory: () => new SockJS('/ws'),
       reconnectDelay: 3000,
       onConnect: () => {
-        // Main game topic
         client.subscribe(`/topic/game/${roomCode}`, msg => handleGameEvent(JSON.parse(msg.body)))
 
-        // Lobby topic — needed for GAME_RESET (spectators + players both need this)
         client.subscribe(`/topic/lobby/${roomCode}`, msg => {
           const d = JSON.parse(msg.body)
           if (d.type === 'GAME_RESET') {
-            // Host pressed Play Again — navigate everyone back to lobby
             clearInterval(timerRef.current)
             const handler = onPlayAgain || onExit
             handler?.()
@@ -98,7 +95,6 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
           }
         })
 
-        // Role reveal (players only)
         if (!isSpectator) {
           client.subscribe(`/topic/game/${roomCode}/role/${playerName}`, msg => {
             const d = JSON.parse(msg.body)
@@ -114,7 +110,6 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
           })
         }
 
-        // Chat — everyone sees messages
         client.subscribe(`/topic/game/${roomCode}/chat`, msg => {
           const m = JSON.parse(msg.body)
           setMessages(prev => [...prev, m])
@@ -147,7 +142,7 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
         setPhase('DISCUSSION'); startTimer(90)
         if (data.abilityLog?.length > 0) {
           setMessages(prev => [
-            ...data.abilityLog.map(t => ({ playerName: '\u26A1 System', text: t, isSystem: true })),
+            ...data.abilityLog.map(t => ({ playerName: '⚡ System', text: t, isSystem: true })),
             ...prev
           ])
         }
@@ -258,7 +253,6 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ playerId })
       })
-      // GAME_RESET broadcast handles navigation for everyone else
     } catch (e) {
       console.warn('Reset failed', e)
     }
@@ -282,7 +276,7 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
     <div className={styles.screen}>
       <SpectatorBanner spectatorCount={spectatorCount} />
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', marginTop: '60px' }}>
-        <div style={{ color: '#2a2a3e', letterSpacing: '5px', fontSize: '10px', textTransform: 'uppercase' }}>\u26A1 Ability Phase</div>
+        <div style={{ color: '#2a2a3e', letterSpacing: '5px', fontSize: '10px', textTransform: 'uppercase' }}>⚡ Ability Phase</div>
         <div style={{ color: '#1a1a2e', letterSpacing: '3px', fontSize: '9px' }}>Players are using their abilities...</div>
         <div style={{ color: '#7b2d8b', fontSize: '28px', fontWeight: 900, letterSpacing: '3px' }}>{timer > 0 ? timer : ''}</div>
       </div>
@@ -312,7 +306,7 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
               onReady={() => setPhase('ABILITY')}
             />
           : <div className={styles.screen}>
-              <div style={{ color: '#444', letterSpacing: '3px', fontSize: '13px' }}>\u23F3 Waiting for your role...</div>
+              <div style={{ color: '#444', letterSpacing: '3px', fontSize: '13px' }}>⏳ Waiting for your role...</div>
             </div>
       )}
 
@@ -359,7 +353,7 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
         <div className={styles.screen} style={{ flexDirection: 'column', gap: '16px' }}>
           <SpectatorBanner spectatorCount={spectatorCount} />
           <div style={{ color: '#2a2a3e', letterSpacing: '5px', fontSize: '10px', textTransform: 'uppercase', marginTop: '60px' }}>
-            \uD83D\uDDF3 Voting in progress
+            🗳 Voting in progress
           </div>
           {Object.entries(votes).map(([target, count]) => (
             <div key={target} style={{ color: '#333', fontSize: '13px', letterSpacing: '2px' }}>

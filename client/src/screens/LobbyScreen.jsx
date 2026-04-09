@@ -28,15 +28,12 @@ export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart
 
   useEffect(() => {
     if (!gameEvent) return
-
     if (gameEvent.type === 'GAME_STARTING') {
       setCapturedEvent(gameEvent)
       setStarting(true)
       setTimeout(() => onGameStart(gameEvent.theme, gameEvent.synopsis), 6500)
     }
-
     if (gameEvent.type === 'GAME_RESET') {
-      // Host clicked Play Again — cancel any in-progress countdown and stay in lobby
       setStarting(false)
       setCapturedEvent(null)
       setStartError('')
@@ -63,12 +60,10 @@ export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart
   const canStart = displayPlayers.length >= MIN_PLAYERS
   const waiting  = MIN_PLAYERS - displayPlayers.length
 
-  // Spectator names from roomData (initial load)
   const initialSpectators = (roomData?.spectatorIds || []).map(id => ({
     spectatorId: id,
     spectatorName: roomData?.spectatorNames?.[id] || id.slice(-6),
   }))
-  // Live spectator count from WS (may be more than initial)
   const liveSpectatorCount = spectatorCount > 0 ? spectatorCount : initialSpectators.length
 
   return (
@@ -89,17 +84,17 @@ export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart
 
           <div className={styles.shareRow}>
             <button className={styles.copyBtn} onClick={() => navigator.clipboard.writeText(roomData?.roomCode)}>
-              \uD83D\uDCCB Copy Code
+              📋 Copy Code
             </button>
             <button className={`${styles.copyBtn} ${styles.shareLink}`} onClick={handleCopyLink}>
-              {copied ? '\u2705 Link Copied!' : '\uD83D\uDD17 Share Link'}
+              {copied ? '✅ Link Copied!' : '🔗 Share Link'}
             </button>
             <button
               className={`${styles.copyBtn} ${showQR ? styles.qrActive : ''}`}
               onClick={() => setShowQR(v => !v)}
               title="Show QR code"
             >
-              {showQR ? '\u274C Hide QR' : '\uD83D\uDCF7 QR Code'}
+              {showQR ? '❌ Hide QR' : '📷 QR Code'}
             </button>
           </div>
 
@@ -114,39 +109,37 @@ export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart
             onClick={toggleMute}
             title={isMuted ? 'Unmute sounds' : 'Mute sounds'}
           >
-            {isMuted ? '\uD83D\uDD07 Muted' : '\uD83D\uDD0A Sound On'}
+            {isMuted ? '🔇 Muted' : '🔊 Sound On'}
           </button>
         </div>
 
         <div className={styles.players}>
           <div className={styles.playersHeader}>
-            Players \u2014 {displayPlayers.length} / {roomData?.maxPlayers}
+            Players — {displayPlayers.length} / {roomData?.maxPlayers}
             {liveSpectatorCount > 0 && (
               <span className={styles.spectatorBadge}>
-                &nbsp;\u00b7 \uD83D\uDC41 {liveSpectatorCount} watching
+                &nbsp;· 👁 {liveSpectatorCount} watching
               </span>
             )}
           </div>
 
-          {/* Active players */}
           {displayPlayers.map(p => (
             <div key={p.playerId} className={styles.playerRow}>
               <span className={styles.avatar}>{p.playerName?.[0]?.toUpperCase() ?? '?'}</span>
               <span className={styles.playerName}>
                 {p.playerName}
-                {p.isHost && <span className={styles.hostBadge}> \uD83D\uDC51</span>}
+                {p.isHost && <span className={styles.hostBadge}> 👑</span>}
                 {p.playerId === playerData?.playerId && <span className={styles.youBadge}> (you)</span>}
               </span>
             </div>
           ))}
 
-          {/* Spectator rows from initial room data */}
           {initialSpectators.length > 0 && (
-            <div className={styles.spectatorDivider}>\u2500\u2500 watching \u2500\u2500</div>
+            <div className={styles.spectatorDivider}>── watching ──</div>
           )}
           {initialSpectators.map(s => (
             <div key={s.spectatorId} className={`${styles.playerRow} ${styles.spectatorRow}`}>
-              <span className={styles.avatar} style={{ opacity: 0.35 }}>\uD83D\uDC41</span>
+              <span className={styles.avatar} style={{ opacity: 0.35 }}>👁</span>
               <span className={styles.playerName} style={{ opacity: 0.35 }}>
                 {s.spectatorName}
                 {s.spectatorId === playerData?.playerId && <span className={styles.youBadge}> (you)</span>}
@@ -157,7 +150,7 @@ export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart
           {!canStart && waiting > 0 && (
             <div className={styles.waitingHint}>
               Waiting for {waiting} more player{waiting > 1 ? 's' : ''}...<br />
-              <span className={styles.waitingSub}>Share the link or QR above \u2B06\uFE0F</span>
+              <span className={styles.waitingSub}>Share the link or QR above ⬆️</span>
             </div>
           )}
         </div>
@@ -165,10 +158,10 @@ export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart
         {playerData?.isHost && !playerData?.isSpectator && (
           <>
             <button className="verdict-btn verdict-btn-primary" disabled={!canStart} onClick={handleStartGame}>
-              {canStart ? '\uD83D\uDE80 Start Game' : `Need ${waiting} more player${waiting > 1 ? 's' : ''}`}
+              {canStart ? '🚀 Start Game' : `Need ${waiting} more player${waiting > 1 ? 's' : ''}`}
             </button>
             {startError && (
-              <p style={{ color: '#e63946', fontSize: '12px', marginTop: '6px', textAlign: 'center' }}>\u26A0\uFE0F {startError}</p>
+              <p style={{ color: '#e63946', fontSize: '12px', marginTop: '6px', textAlign: 'center' }}>⚠️ {startError}</p>
             )}
           </>
         )}
