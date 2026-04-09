@@ -3,13 +3,19 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 100vh;
+  min-height: 100vh;
   background: radial-gradient(ellipse at top, #1a0a2e 0%, #0a0a0f 60%);
   gap: 40px;
+  padding: 20px;
+  box-sizing: border-box;
 }
 
 .hero {
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
 }
 
 .badge {
@@ -21,11 +27,10 @@
   letter-spacing: 2px;
   padding: 4px 12px;
   border-radius: 20px;
-  margin-bottom: 16px;
 }
 
 .title {
-  font-size: clamp(64px, 12vw, 128px);
+  font-size: clamp(56px, 12vw, 128px);
   font-weight: 900;
   letter-spacing: 12px;
   background: linear-gradient(135deg, #fff 30%, #e63946 70%, #7b2d8b);
@@ -33,14 +38,28 @@
   -webkit-text-fill-color: transparent;
   background-clip: text;
   line-height: 1;
-  margin-bottom: 12px;
+  margin: 0;
 }
 
 .subtitle {
   color: #888;
-  font-size: 16px;
+  font-size: clamp(13px, 3vw, 16px);
+  letter-spacing: 0.5px;
+  margin: 0;
+}
+
+.howToBtn {
+  background: none;
+  border: 1px solid #2a2a3e;
+  color: #888;
+  font-size: 13px;
+  padding: 6px 16px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s;
   letter-spacing: 0.5px;
 }
+.howToBtn:hover { border-color: #7b2d8b; color: #c77dff; }
 
 .card {
   background: rgba(26, 26, 46, 0.8);
@@ -50,6 +69,7 @@
   width: 100%;
   max-width: 400px;
   backdrop-filter: blur(12px);
+  box-sizing: border-box;
 }
 
 .actions {
@@ -85,4 +105,109 @@
 .error {
   color: #e63946;
   font-size: 14px;
+}
+
+/* HOW TO PLAY MODAL */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.75);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  padding: 20px;
+}
+
+.modal {
+  background: #0f0f1c;
+  border: 1px solid #2a2a3e;
+  border-radius: 20px;
+  padding: 36px 32px 28px;
+  max-width: 360px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+
+.modalStep {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  min-height: 140px;
+  justify-content: center;
+}
+
+.stepEmoji {
+  font-size: 52px;
+  line-height: 1;
+}
+
+.stepTitle {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #fff;
+}
+
+.stepDesc {
+  font-size: 14px;
+  color: #aaa;
+  line-height: 1.6;
+  max-width: 280px;
+}
+
+.stepDots {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #2a2a3e;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.dotActive {
+  background: #7b2d8b;
+  box-shadow: 0 0 8px #7b2d8b;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.modalBack {
+  background: none;
+  border: 1px solid #2a2a3e;
+  border-radius: 10px;
+  color: #888;
+  padding: 10px 20px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.modalBack:hover { border-color: #555; color: #ccc; }
+
+/* Mobile full-width card */
+@media (max-width: 480px) {
+  .card {
+    padding: 24px 20px;
+    border-radius: 12px;
+  }
+
+  .container {
+    gap: 28px;
+  }
 }

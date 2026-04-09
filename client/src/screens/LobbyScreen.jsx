@@ -5,25 +5,20 @@ import LobbyGame from '../phaser/LobbyGame'
 import GameStartingOverlay from '../components/GameStartingOverlay'
 import styles from './LobbyScreen.module.css'
 
-const MIN_PLAYERS = 1
+// Set to 4 for production; 1 only for local dev testing
+const MIN_PLAYERS = 4
 
 export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart }) {
   const { players, connected, gameEvent } = useLobbySocket(roomData?.roomCode, playerData?.playerId)
   const [starting, setStarting] = useState(false)
   const [startError, setStartError] = useState('')
   const [capturedEvent, setCapturedEvent] = useState(null)
+  const [copied, setCopied] = useState(false)
 
-  /**
-   * Player list resolution priority:
-   * 1. WebSocket broadcast (real-time, has real names from server)
-   * 2. roomData.playerNames map (from REST response on join/create, has real names)
-   * 3. Nothing — never fall back to raw UUIDs
-   */
   const displayPlayers = players.length > 0
-    ? players  // WebSocket already sends real display names from server
+    ? players
     : (roomData?.playerIds || []).map(id => ({
         playerId: id,
-        // Use playerNames map from RoomResponse — server-side resolved names
         playerName: roomData?.playerNames?.[id] || playerData?.playerName || id.slice(-6),
         isHost: id === roomData?.hostPlayerId,
       }))
@@ -48,6 +43,14 @@ export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart
     }
   }
 
+  const handleCopyLink = () => {
+    const link = `${window.location.origin}?join=${roomData?.roomCode}`
+    navigator.clipboard.writeText(link).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
   const canStart = displayPlayers.length >= MIN_PLAYERS
   const waiting = MIN_PLAYERS - displayPlayers.length
 
@@ -61,7 +64,14 @@ export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart
         <div className={styles.roomInfo}>
           <span className={styles.label}>ROOM CODE</span>
           <span className={styles.code}>{roomData?.roomCode}</span>
-          <button className={styles.copyBtn} onClick={() => navigator.clipboard.writeText(roomData?.roomCode)}>📋 Copy</button>
+          <div className={styles.shareRow}>
+            <button className={styles.copyBtn} onClick={() => navigator.clipboard.writeText(roomData?.roomCode)}>
+              📋 Copy Code
+            </button>
+            <button className={`${styles.copyBtn} ${styles.shareLink}`} onClick={handleCopyLink}>
+              {copied ? '✅ Link Copied!' : '🔗 Share Link'}
+            </button>
+          </div>
         </div>
         <div className={styles.status}>
           <span className={`${styles.dot} ${connected ? styles.connected : styles.disconnected}`} />
@@ -79,11 +89,17 @@ export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart
               </span>
             </div>
           ))}
+          {!canStart && waiting > 0 && (
+            <div className={styles.waitingHint}>
+              Waiting for {waiting} more player{waiting > 1 ? 's' : ''}...<br />
+              <span className={styles.waitingSub}>Share the link above 👆</span>
+            </div>
+          )}
         </div>
         {playerData?.isHost && (
           <>
             <button className="verdict-btn verdict-btn-primary" disabled={!canStart} onClick={handleStartGame}>
-              {canStart ? '🚀 Start Game' : `Waiting for ${waiting} more…`}
+              {canStart ? '🚀 Start Game' : `Need ${waiting} more player${waiting > 1 ? 's' : ''}`}
             </button>
             {startError && <p style={{ color: '#e63946', fontSize: '12px', marginTop: '6px', textAlign: 'center' }}>⚠️ {startError}</p>}
           </>

@@ -88,3 +88,94 @@
 .myRoleLabel { font-size:7px; letter-spacing:4px; color:#444; text-transform:uppercase; }
 .myRoleName { font-size:16px; font-weight:900; letter-spacing:2px; color:var(--role-color,#7b2d8b); text-transform:uppercase; }
 .myRoleAlignment { font-size:10px; color:#555; }
+
+/* ============================================================
+   MOBILE RESPONSIVE — everything below 768px
+   Priority: Chat > Players > Evidence (evidence hidden on xs)
+   ============================================================ */
+@media (max-width: 768px) {
+  .body {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  /* Hide evidence board on mobile — show it as collapsible later */
+  .evidenceCol {
+    display: none;
+  }
+
+  .chatPanel {
+    flex: 1;
+    min-height: 55vh;
+    max-height: 55vh;
+    border-bottom: 1px solid #1a1a2e;
+  }
+
+  .chatMessages {
+    padding: 10px 12px;
+  }
+
+  .sidePanel {
+    width: 100%;
+    min-width: unset;
+    flex-direction: row;
+    flex-wrap: wrap;
+    max-height: 40vh;
+    overflow-y: auto;
+    padding: 8px;
+    border-left: none;
+    border-top: 1px solid #111120;
+    gap: 6px;
+  }
+
+  .sideLabel {
+    width: 100%;
+    margin-bottom: 0;
+  }
+
+  .playerRow {
+    flex: 0 1 calc(50% - 6px);
+    min-width: 120px;
+  }
+
+  .myRoleCard {
+    width: 100%;
+    margin-top: 4px;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .myRoleLabel { display: none; }
+
+  .confessionBtn {
+    width: 100%;
+  }
+
+  .header {
+    padding: 8px 14px;
+  }
+
+  .timer {
+    font-size: 18px;
+  }
+
+  .input {
+    font-size: 16px; /* prevent iOS zoom on input focus */
+  }
+}
+
+@media (max-width: 480px) {
+  .chatPanel {
+    min-height: 50vh;
+    max-height: 50vh;
+  }
+
+  .sidePanel {
+    max-height: 45vh;
+  }
+
+  .playerRow {
+    flex: 0 1 100%;
+  }
+}

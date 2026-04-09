@@ -37,7 +37,6 @@ export default function GameScreen({ roomCode, playerId, playerName, initialThem
       .then(state => {
         if (!state) { setPhase('ROLE_REVEAL'); return }
         if (state.theme) setTheme(state.theme)
-        // roles are keyed by display name (playerName)
         const myRoleData = state.roles?.[playerName]
         if (myRoleData) setMyRole({ ...myRoleData, playerName })
         if (state.allPlayers) {
@@ -60,10 +59,8 @@ export default function GameScreen({ roomCode, playerId, playerName, initialThem
       webSocketFactory: () => new SockJS('/ws'),
       reconnectDelay: 3000,
       onConnect: () => {
-        // Game-wide events
         client.subscribe(`/topic/game/${roomCode}`, msg => handleGameEvent(JSON.parse(msg.body)))
 
-        // Role reveal — subscribed by DISPLAY NAME (server sends to playerName not UUID)
         client.subscribe(`/topic/game/${roomCode}/role/${playerName}`, msg => {
           const d = JSON.parse(msg.body)
           if (d.type === 'ROLE_REVEAL') {
@@ -79,11 +76,9 @@ export default function GameScreen({ roomCode, playerId, playerName, initialThem
           }
         })
 
-        // Chat
         client.subscribe(`/topic/game/${roomCode}/chat`, msg => {
           const m = JSON.parse(msg.body)
           setMessages(prev => [...prev, m])
-          // Evidence board: confessions + accusations + ability uses
           if (m.isConfession || m.isSystem || m.isObserver) {
             setEvidenceEvents(prev => [...prev, {
               type: m.isConfession ? 'confession' : m.isObserver ? 'observer' : 'system',
@@ -101,6 +96,7 @@ export default function GameScreen({ roomCode, playerId, playerName, initialThem
         })
 
         // Private confession request — by display name
+        // NOTE: confession answer is handled entirely inside DiscussionPhase via confessionRequest prop
         client.subscribe(`/topic/game/${roomCode}/confess/${playerName}`, msg => {
           const d = JSON.parse(msg.body)
           setConfessionRequest({ from: d.from, question: d.question })
@@ -177,7 +173,7 @@ export default function GameScreen({ roomCode, playerId, playerName, initialThem
   }
 
   function handleAccuse(targetName) {
-    if (targetName === playerName) return // never self-accuse
+    if (targetName === playerName) return
     fetch(`/api/game/${roomCode}/accuse`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ accuserName: playerName, targetName })
@@ -185,7 +181,7 @@ export default function GameScreen({ roomCode, playerId, playerName, initialThem
   }
 
   function handleDemandConfession(targetName, question) {
-    if (targetName === playerName) return // never self-confess
+    if (targetName === playerName) return
     fetch(`/api/game/${roomCode}/confess/demand`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ from: playerName, to: targetName, question })
@@ -219,7 +215,7 @@ export default function GameScreen({ roomCode, playerId, playerName, initialThem
   }
 
   function castVote(targetId) {
-    if (targetId === playerName) return // never self-vote
+    if (targetId === playerName) return
     fetch(`/api/game/${roomCode}/vote`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ voterId: playerName, targetId })
@@ -236,21 +232,7 @@ export default function GameScreen({ roomCode, playerId, playerName, initialThem
     <div className={styles.screen}>
       {worldEvent && <WorldEvent event={worldEvent} onDismiss={() => setWorldEvent(null)} />}
 
-      {/* Forced confession overlay */}
-      {confessionRequest && (
-        <div className={styles.confessOverlay}>
-          <div className={styles.confessBox}>
-            <div className={styles.confessTitle}>🎤 YOU MUST CONFESS</div>
-            <div className={styles.confessFrom}>Asked by <strong>{confessionRequest.from}</strong>:</div>
-            <div className={styles.confessQ}>“{confessionRequest.question}”</div>
-            <div className={styles.confessButtons}>
-              <button className={`${styles.confessBtn} ${styles.yes}`} onClick={() => handleAnswerConfession('YES')}>YES</button>
-              <button className={`${styles.confessBtn} ${styles.no}`} onClick={() => handleAnswerConfession('NO')}>NO</button>
-            </div>
-          </div>
-        </div>
-      )}
-
+      {/* ROLE REVEAL / AWAITING */}
       {(phase === 'ROLE_REVEAL' || phase === 'AWAITING_ROLE') && (
         myRole
           ? <RoleRevealCard
@@ -276,6 +258,7 @@ export default function GameScreen({ roomCode, playerId, playerName, initialThem
         />
       )}
 
+      {/* DiscussionPhase handles confession overlay internally via confessionRequest + onAnswerConfession props */}
       {(phase === 'DISCUSSION' || phase === 'AWAITING_DISCUSSION') && (
         <DiscussionPhase
           theme={theme}
@@ -290,6 +273,7 @@ export default function GameScreen({ roomCode, playerId, playerName, initialThem
           onAccuse={handleAccuse}
           onDemandConfession={handleDemandConfession}
           confessionRequest={confessionRequest}
+          onAnswerConfession={handleAnswerConfession}
         />
       )}
 

@@ -10,7 +10,7 @@ const ALIGNMENT_COLOR = { evil: '#e63946', good: '#00b4d8' }
 export default function DiscussionPhase({
   theme, myRole, players, messages, timer,
   isEliminated, onSendChat, onAccuse, onDemandConfession,
-  confessionRequest, trustScores, evidenceEvents
+  confessionRequest, onAnswerConfession, trustScores, evidenceEvents
 }) {
   const [input, setInput] = useState('')
   const [showConfessionBooth, setShowConfessionBooth] = useState(false)
@@ -69,13 +69,13 @@ export default function DiscussionPhase({
         />
       )}
 
-      {/* Forced confession overlay for the target */}
+      {/* Forced confession — answered here, result sent via onAnswerConfession */}
       {confessionRequest && (
         <ConfessionPrompt
           confession={{ targetName: myRole?.playerName, askerName: confessionRequest.from, question: confessionRequest.question }}
           myPlayerName={myRole?.playerName}
           onAnswer={(ans) => {
-            onSendChat(`[CONFESSION] ${ans}`)
+            onAnswerConfession(ans)
           }}
         />
       )}
@@ -95,10 +95,10 @@ export default function DiscussionPhase({
         myPlayerName={myRole?.playerName}
       />
 
-      {/* 3-column body */}
+      {/* 3-column body (desktop) / stacked (mobile) */}
       <div className={styles.body}>
 
-        {/* Evidence board — left */}
+        {/* Evidence board — left / hidden on mobile */}
         <div className={styles.evidenceCol}>
           <EvidenceBoard events={evidenceEvents || []} />
         </div>
@@ -146,7 +146,7 @@ export default function DiscussionPhase({
           </div>
         </div>
 
-        {/* Players + role — right */}
+        {/* Players + role — right / bottom on mobile */}
         <div className={styles.sidePanel}>
           <div className={styles.sideLabel}>PLAYERS</div>
           {players.filter(p => p.isAlive !== false).map(p => {

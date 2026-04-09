@@ -3,12 +3,47 @@ import { v4 as uuidv4 } from 'uuid'
 import { createRoom, joinRoom } from '../api/roomApi'
 import styles from './HomeScreen.module.css'
 
+const HOW_TO_PLAY_STEPS = [
+  {
+    emoji: '🎭',
+    title: 'Secret Roles',
+    desc: 'Everyone gets a unique AI-generated role — Cooperator or Antagonist. Only you see yours.'
+  },
+  {
+    emoji: '⚡',
+    title: 'Use Your Ability',
+    desc: 'Each role has a special one-time ability. Spy on someone, plant evidence, swap votes — use it wisely.'
+  },
+  {
+    emoji: '💬',
+    title: 'Discuss & Deceive',
+    desc: 'Chat with everyone. Accuse suspects. Demand confessions. Watch the Trust Meter shift in real-time.'
+  },
+  {
+    emoji: '🗳️',
+    title: 'Vote & Win',
+    desc: 'Nominate and vote out players. Cooperators win by removing all Antagonists. Antagonists win by surviving.'
+  }
+]
+
 export default function HomeScreen({ onEnterLobby }) {
   const [mode, setMode] = useState(null) // 'create' | 'join'
   const [name, setName] = useState('')
   const [roomCode, setRoomCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [showHowTo, setShowHowTo] = useState(false)
+  const [howToStep, setHowToStep] = useState(0)
+
+  // Check for ?join=CODE in URL — auto-fill join flow
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const code = params.get('join')
+    if (code) {
+      setRoomCode(code.toUpperCase())
+      setMode('join')
+    }
+  }, [])
 
   const playerId = React.useMemo(() => {
     let id = localStorage.getItem('verdict_player_id')
@@ -41,10 +76,45 @@ export default function HomeScreen({ onEnterLobby }) {
 
   return (
     <div className={styles.container}>
+      {/* HOW TO PLAY MODAL */}
+      {showHowTo && (
+        <div className={styles.modalOverlay} onClick={() => setShowHowTo(false)}>
+          <div className={styles.modal} onClick={e => e.stopPropagation()}>
+            <div className={styles.modalStep}>
+              <div className={styles.stepEmoji}>{HOW_TO_PLAY_STEPS[howToStep].emoji}</div>
+              <div className={styles.stepTitle}>{HOW_TO_PLAY_STEPS[howToStep].title}</div>
+              <div className={styles.stepDesc}>{HOW_TO_PLAY_STEPS[howToStep].desc}</div>
+            </div>
+            <div className={styles.stepDots}>
+              {HOW_TO_PLAY_STEPS.map((_, i) => (
+                <span
+                  key={i}
+                  className={`${styles.dot} ${i === howToStep ? styles.dotActive : ''}`}
+                  onClick={() => setHowToStep(i)}
+                />
+              ))}
+            </div>
+            <div className={styles.modalActions}>
+              {howToStep > 0 && (
+                <button className={styles.modalBack} onClick={() => setHowToStep(s => s - 1)}>← Back</button>
+              )}
+              {howToStep < HOW_TO_PLAY_STEPS.length - 1 ? (
+                <button className="verdict-btn verdict-btn-primary" onClick={() => setHowToStep(s => s + 1)}>Next →</button>
+              ) : (
+                <button className="verdict-btn verdict-btn-primary" onClick={() => setShowHowTo(false)}>Let's Play 🔥</button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className={styles.hero}>
         <div className={styles.badge}>AI-POWERED</div>
         <h1 className={styles.title}>VERDICT</h1>
         <p className={styles.subtitle}>Social deduction. AI Game Master. No two games alike.</p>
+        <button className={styles.howToBtn} onClick={() => { setShowHowTo(true); setHowToStep(0) }}>
+          ❓ How to Play
+        </button>
       </div>
 
       <div className={styles.card}>
