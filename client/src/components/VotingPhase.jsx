@@ -1,29 +1,32 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import styles from './VotingPhase.module.css'
 import { useSound } from '../hooks/useSound'
 
 export default function VotingPhase({ players, votes, myPlayerId, nominatedPlayer, onVote }) {
+  // players already filtered to exclude self (done in GameScreen)
   const [voted, setVoted] = useState(false)
   const [selected, setSelected] = useState(null)
   const [revealed, setRevealed] = useState([])
   const [showResult, setShowResult] = useState(false)
   const sound = useSound()
-  const allVoted = Object.keys(votes).length >= players.length
 
-  // When all voted — flip cards one by one
+  // include self in vote count display but not as a vote target
+  const allPlayers = players // already self-excluded
+  const allVoted = Object.keys(votes).length >= (players.length + 1) // +1 for self who also votes
+
   useEffect(() => {
     if (!allVoted || revealed.length > 0) return
-    players.forEach((p, i) => {
+    allPlayers.forEach((p, i) => {
       setTimeout(() => {
         sound.playVoteFlip()
         setRevealed(prev => [...prev, p.playerName || p.playerId])
       }, i * 350)
     })
-    setTimeout(() => setShowResult(true), players.length * 350 + 400)
+    setTimeout(() => setShowResult(true), allPlayers.length * 350 + 400)
   }, [allVoted])
 
   function confirmVote(id) {
-    if (voted) return
+    if (voted || id === myPlayerId) return // double-guard self-vote
     setSelected(id)
     setVoted(true)
     sound.playGavel()
@@ -42,12 +45,12 @@ export default function VotingPhase({ players, votes, myPlayerId, nominatedPlaye
             <span className={styles.nominatedName}>{nominatedPlayer}</span>
           </div>
         )}
+        <div className={styles.subtitle}>Vote to eliminate. You cannot vote for yourself.</div>
       </div>
 
-      {/* Vote bars — fill in real time */}
       {Object.keys(votes).length > 0 && (
         <div className={styles.liveBars}>
-          {players.map(p => {
+          {allPlayers.map(p => {
             const id = p.playerName || p.playerId
             const count = Number(votes[id] || 0)
             const pct = totalVotes > 0 ? (count / totalVotes) * 100 : 0
@@ -64,42 +67,34 @@ export default function VotingPhase({ players, votes, myPlayerId, nominatedPlaye
         </div>
       )}
 
-      {/* Vote cards */}
       {!allVoted && (
         <div className={styles.grid}>
-          {players
-            .filter(p => (p.playerName || p.playerId) !== myPlayerId)
-            .map(p => {
-              const id = p.playerName || p.playerId
-              return (
-                <button
-                  key={id}
-                  className={`${styles.voteCard} ${selected === id ? styles.selected : ''} ${voted && selected !== id ? styles.dimmed : ''}`}
-                  onClick={() => confirmVote(id)}
-                  disabled={voted}
-                >
-                  <div className={styles.avatar}>{id[0]?.toUpperCase()}</div>
-                  <div className={styles.name}>{id}</div>
-                </button>
-              )
-            })}
+          {allPlayers.map(p => {
+            const id = p.playerName || p.playerId
+            return (
+              <button
+                key={id}
+                className={`${styles.voteCard} ${selected === id ? styles.selected : ''} ${voted && selected !== id ? styles.dimmed : ''}`}
+                onClick={() => confirmVote(id)}
+                disabled={voted}
+              >
+                <div className={styles.avatar}>{id[0]?.toUpperCase()}</div>
+                <div className={styles.name}>{id}</div>
+              </button>
+            )
+          })}
         </div>
       )}
 
-      {/* Flip reveal */}
       {allVoted && (
         <div className={styles.flipGrid}>
-          {players.map((p, i) => {
+          {allPlayers.map((p) => {
             const id = p.playerName || p.playerId
             const isRevealed = revealed.includes(id)
             const voteCount = Number(votes[id] || 0)
             return (
-              <div key={id}
-                className={`${styles.flipCard} ${isRevealed ? styles.flipped : ''}`}
-              >
-                <div className={styles.flipFront}>
-                  <span className={styles.flipQ}>?</span>
-                </div>
+              <div key={id} className={`${styles.flipCard} ${isRevealed ? styles.flipped : ''}`}>
+                <div className={styles.flipFront}><span className={styles.flipQ}>?</span></div>
                 <div className={styles.flipBack}>
                   <div className={styles.flipName}>{id}</div>
                   <div className={styles.flipVotes}>{voteCount} vote{voteCount !== 1 ? 's' : ''}</div>
@@ -116,12 +111,7 @@ export default function VotingPhase({ players, votes, myPlayerId, nominatedPlaye
           Vote cast — waiting for others...
         </div>
       )}
-
-      {showResult && (
-        <div className={styles.resultMsg}>
-          Votes counted — verdict incoming...
-        </div>
-      )}
+      {showResult && <div className={styles.resultMsg}>Votes counted — verdict incoming...</div>}
     </div>
   )
 }

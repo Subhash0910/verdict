@@ -27,7 +27,8 @@ export default function GameScreen({ roomCode, playerId, playerName, initialThem
   const [isEliminated, setIsEliminated] = useState(false)
   const [nominatedPlayer, setNominatedPlayer] = useState(null)
   const [trustScores, setTrustScores]   = useState({})
-  const [confessionRequest, setConfessionRequest] = useState(null) // {from, question}
+  const [confessionRequest, setConfessionRequest] = useState(null)
+  const [evidenceEvents, setEvidenceEvents] = useState([])
 
   // Fetch state on mount
   useEffect(() => {
@@ -36,6 +37,7 @@ export default function GameScreen({ roomCode, playerId, playerName, initialThem
       .then(state => {
         if (!state) { setPhase('ROLE_REVEAL'); return }
         if (state.theme) setTheme(state.theme)
+        // roles are keyed by display name (playerName)
         const myRoleData = state.roles?.[playerName]
         if (myRoleData) setMyRole({ ...myRoleData, playerName })
         if (state.allPlayers) {
@@ -49,7 +51,7 @@ export default function GameScreen({ roomCode, playerId, playerName, initialThem
         else if (state.phase === 'ABILITY') { setPhase('ABILITY'); startTimer(60) }
         else setPhase(myRoleData ? 'ROLE_REVEAL' : 'AWAITING_ROLE')
       })
-      .catch(() => setPhase('ROLE_REVEAL'))
+      .catch(() => setPhase('AWAITING_ROLE'))
   }, [])
 
   // WebSocket
@@ -60,19 +62,36 @@ export default function GameScreen({ roomCode, playerId, playerName, initialThem
       onConnect: () => {
         // Game-wide events
         client.subscribe(`/topic/game/${roomCode}`, msg => handleGameEvent(JSON.parse(msg.body)))
-        // Private role
+
+        // Role reveal — subscribed by DISPLAY NAME (server sends to playerName not UUID)
         client.subscribe(`/topic/game/${roomCode}/role/${playerName}`, msg => {
           const d = JSON.parse(msg.body)
           if (d.type === 'ROLE_REVEAL') {
-            setMyRole({ roleName:d.roleName, alignment:d.alignment, winCondition:d.winCondition, ability:d.ability, restriction:d.restriction, playerName })
+            setMyRole({
+              roleName: d.roleName,
+              alignment: d.alignment,
+              winCondition: d.winCondition,
+              ability: d.ability,
+              restriction: d.restriction,
+              playerName
+            })
             setPhase('ROLE_REVEAL')
           }
         })
+
         // Chat
         client.subscribe(`/topic/game/${roomCode}/chat`, msg => {
           const m = JSON.parse(msg.body)
           setMessages(prev => [...prev, m])
-          // Trust score updates piggyback on chat events
+          // Evidence board: confessions + accusations + ability uses
+          if (m.isConfession || m.isSystem || m.isObserver) {
+            setEvidenceEvents(prev => [...prev, {
+              type: m.isConfession ? 'confession' : m.isObserver ? 'observer' : 'system',
+              text: m.text,
+              player: m.playerName,
+              ts: Date.now()
+            }])
+          }
           if (m.trustDelta && m.targetPlayer) {
             setTrustScores(prev => ({
               ...prev,
@@ -80,7 +99,8 @@ export default function GameScreen({ roomCode, playerId, playerName, initialThem
             }))
           }
         })
-        // Private confession request
+
+        // Private confession request — by display name
         client.subscribe(`/topic/game/${roomCode}/confess/${playerName}`, msg => {
           const d = JSON.parse(msg.body)
           setConfessionRequest({ from: d.from, question: d.question })
@@ -97,16 +117,20 @@ export default function GameScreen({ roomCode, playerId, playerName, initialThem
       case 'ABILITY_PHASE_START':
         setPhase('ABILITY'); startTimer(data.durationSeconds || 60); break
       case 'DISCUSSION_START':
-        setPhase('DISCUSSION'); startTimer(90) // Always 90s
+        setPhase('DISCUSSION'); startTimer(90)
         if (data.abilityLog?.length > 0) {
           setMessages(prev => [
             ...data.abilityLog.map(t => ({ playerName: '⚡ System', text: t, isSystem: true })),
             ...prev
           ])
+          setEvidenceEvents(prev => [
+            ...prev,
+            ...data.abilityLog.map(t => ({ type: 'system', text: t, player: 'System', ts: Date.now() }))
+          ])
         }
         break
       case 'WORLD_EVENT':
-        setWorldEvent({ title:data.title, description:data.description, effect:data.effect }); break
+        setWorldEvent({ title: data.title, description: data.description, effect: data.effect }); break
       case 'VOTING_START':
         setNominatedPlayer(data.nominatedPlayer || null)
         setPhase('VOTING'); setVotes({}); break
@@ -118,6 +142,9 @@ export default function GameScreen({ roomCode, playerId, playerName, initialThem
         clearInterval(timerRef.current)
         if (data.eliminatedId === playerName) setIsEliminated(true)
         setElimination(data)
+        setPlayers(prev => prev.map(p =>
+          p.playerName === data.eliminatedId ? { ...p, isAlive: false } : p
+        ))
         setPhase(data.gameOver ? 'GAME_OVER_PENDING' : 'ELIMINATION')
         if (data.gameOver) setGameResult({ winner: data.winner })
         break
@@ -137,36 +164,42 @@ export default function GameScreen({ roomCode, playerId, playerName, initialThem
 
   function handleUseAbility(targetName) {
     fetch(`/api/game/${roomCode}/ability`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ playerName, targetName, action:'use' })
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ playerName, targetName, action: 'use' })
     })
   }
 
   function handleSkipAbility() {
     fetch(`/api/game/${roomCode}/ability`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ playerName, action:'skip' })
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ playerName, action: 'skip' })
     })
   }
 
   function handleAccuse(targetName) {
+    if (targetName === playerName) return // never self-accuse
     fetch(`/api/game/${roomCode}/accuse`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ accuserName: playerName, targetName })
     })
   }
 
   function handleDemandConfession(targetName, question) {
+    if (targetName === playerName) return // never self-confess
     fetch(`/api/game/${roomCode}/confess/demand`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ from: playerName, to: targetName, question })
     })
   }
 
   function handleAnswerConfession(answer) {
     fetch(`/api/game/${roomCode}/confess/answer`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ playerName, answer, question: confessionRequest?.question, from: confessionRequest?.from })
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        playerName, answer,
+        question: confessionRequest?.question,
+        from: confessionRequest?.from
+      })
     })
     setConfessionRequest(null)
   }
@@ -174,7 +207,7 @@ export default function GameScreen({ roomCode, playerId, playerName, initialThem
   function sendChat(text) {
     if (isEliminated) {
       fetch(`/api/game/${roomCode}/spirit`, {
-        method:'POST', headers:{'Content-Type':'application/json'},
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: text })
       })
     } else {
@@ -186,15 +219,16 @@ export default function GameScreen({ roomCode, playerId, playerName, initialThem
   }
 
   function castVote(targetId) {
+    if (targetId === playerName) return // never self-vote
     fetch(`/api/game/${roomCode}/vote`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ voterId: playerName, targetId })
     })
   }
 
   if (phase === 'LOADING') return (
     <div className={styles.screen}>
-      <div style={{color:'#333',letterSpacing:'4px',fontSize:'12px',textTransform:'uppercase'}}>Loading...</div>
+      <div style={{ color: '#333', letterSpacing: '4px', fontSize: '12px', textTransform: 'uppercase' }}>Loading...</div>
     </div>
   )
 
@@ -202,12 +236,12 @@ export default function GameScreen({ roomCode, playerId, playerName, initialThem
     <div className={styles.screen}>
       {worldEvent && <WorldEvent event={worldEvent} onDismiss={() => setWorldEvent(null)} />}
 
-      {/* Confession prompt overlay — forced response */}
+      {/* Forced confession overlay */}
       {confessionRequest && (
         <div className={styles.confessOverlay}>
           <div className={styles.confessBox}>
             <div className={styles.confessTitle}>🎤 YOU MUST CONFESS</div>
-            <div className={styles.confessFrom}>Asked by {confessionRequest.from}:</div>
+            <div className={styles.confessFrom}>Asked by <strong>{confessionRequest.from}</strong>:</div>
             <div className={styles.confessQ}>“{confessionRequest.question}”</div>
             <div className={styles.confessButtons}>
               <button className={`${styles.confessBtn} ${styles.yes}`} onClick={() => handleAnswerConfession('YES')}>YES</button>
@@ -219,36 +253,71 @@ export default function GameScreen({ roomCode, playerId, playerName, initialThem
 
       {(phase === 'ROLE_REVEAL' || phase === 'AWAITING_ROLE') && (
         myRole
-          ? <RoleRevealCard roleName={myRole.roleName} alignment={myRole.alignment} winCondition={myRole.winCondition} ability={myRole.ability} restriction={myRole.restriction} onReady={() => setPhase('ABILITY')} />
-          : <div className={styles.screen}><div style={{color:'#444',letterSpacing:'3px',fontSize:'13px'}}>⏳ Waiting for your role...</div></div>
+          ? <RoleRevealCard
+              roleName={myRole.roleName}
+              alignment={myRole.alignment}
+              winCondition={myRole.winCondition}
+              ability={myRole.ability}
+              restriction={myRole.restriction}
+              onReady={() => setPhase('ABILITY')}
+            />
+          : <div className={styles.screen}>
+              <div style={{ color: '#444', letterSpacing: '3px', fontSize: '13px' }}>⏳ Waiting for your role...</div>
+            </div>
       )}
 
       {phase === 'ABILITY' && (
-        <AbilityPhase myRole={{ ...myRole, playerName }} players={players} timer={timer} onUse={handleUseAbility} onSkip={handleSkipAbility} />
+        <AbilityPhase
+          myRole={{ ...myRole, playerName }}
+          players={players.filter(p => p.isAlive !== false)}
+          timer={timer}
+          onUse={handleUseAbility}
+          onSkip={handleSkipAbility}
+        />
       )}
 
       {(phase === 'DISCUSSION' || phase === 'AWAITING_DISCUSSION') && (
         <DiscussionPhase
-          theme={theme} myRole={myRole} players={players}
-          messages={messages} timer={timer}
+          theme={theme}
+          myRole={{ ...myRole, playerName }}
+          players={players}
+          messages={messages}
+          timer={timer}
           isEliminated={isEliminated}
           trustScores={trustScores}
+          evidenceEvents={evidenceEvents}
           onSendChat={sendChat}
           onAccuse={handleAccuse}
           onDemandConfession={handleDemandConfession}
+          confessionRequest={confessionRequest}
         />
       )}
 
       {phase === 'VOTING' && (
-        <VotingPhase players={players.filter(p => p.isAlive)} votes={votes} myPlayerId={playerName} nominatedPlayer={nominatedPlayer} onVote={castVote} />
+        <VotingPhase
+          players={players.filter(p => p.isAlive !== false && p.playerName !== playerName)}
+          votes={votes}
+          myPlayerId={playerName}
+          nominatedPlayer={nominatedPlayer}
+          onVote={castVote}
+        />
       )}
 
       {phase === 'ELIMINATION' && elimination && (
-        <EliminationScreen elimination={elimination} onContinue={() => { setPhase('ABILITY'); startTimer(60) }} />
+        <EliminationScreen
+          elimination={elimination}
+          onContinue={() => { setPhase('ABILITY'); startTimer(60) }}
+        />
       )}
 
       {(phase === 'GAME_OVER' || phase === 'GAME_OVER_PENDING') && (
-        <GameOverScreen result={gameResult} myRole={myRole} caseFile={caseFile} theme={theme} onPlayAgain={onExit} />
+        <GameOverScreen
+          result={gameResult}
+          myRole={myRole}
+          caseFile={caseFile}
+          theme={theme}
+          onPlayAgain={onExit}
+        />
       )}
     </div>
   )

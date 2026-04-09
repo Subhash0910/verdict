@@ -5,7 +5,7 @@ import LobbyGame from '../phaser/LobbyGame'
 import GameStartingOverlay from '../components/GameStartingOverlay'
 import styles from './LobbyScreen.module.css'
 
-const MIN_PLAYERS = 1 // dev
+const MIN_PLAYERS = 1
 
 export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart }) {
   const { players, connected, gameEvent } = useLobbySocket(roomData?.roomCode, playerData?.playerId)
@@ -13,11 +13,18 @@ export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart
   const [startError, setStartError] = useState('')
   const [capturedEvent, setCapturedEvent] = useState(null)
 
+  // Build player list: use real display names when available from socket
+  // Fall back to playerData.playerName for self, truncated UUID for others
   const displayPlayers = players.length > 0
-    ? players
+    ? players.map(p => ({
+        ...p,
+        playerName: p.playerName && !isUUID(p.playerName) ? p.playerName
+          : p.playerId === playerData?.playerId ? playerData.playerName
+          : shortenId(p.playerId)
+      }))
     : (roomData?.playerIds || []).map(id => ({
         playerId: id,
-        playerName: id === playerData?.playerId ? playerData.playerName : id,
+        playerName: id === playerData?.playerId ? playerData.playerName : shortenId(id),
         isHost: id === roomData?.hostPlayerId,
       }))
 
@@ -32,7 +39,7 @@ export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart
   const handleStartGame = async () => {
     setStartError('')
     try {
-      // Send display names so AI uses real names not UUIDs
+      // CRITICAL: send real display names so AI uses them everywhere
       const playerNames = displayPlayers.map(p => p.playerName)
       await axios.post(`/api/game/${roomData.roomCode}/start`, {
         playerId: playerData.playerId,
@@ -68,7 +75,11 @@ export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart
           {displayPlayers.map(p => (
             <div key={p.playerId} className={styles.playerRow}>
               <span className={styles.avatar}>{p.playerName?.[0]?.toUpperCase() ?? '?'}</span>
-              <span className={styles.playerName}>{p.playerName}{p.isHost && <span className={styles.hostBadge}> 👑</span>}</span>
+              <span className={styles.playerName}>
+                {p.playerName}
+                {p.isHost && <span className={styles.hostBadge}> 👑</span>}
+                {p.playerId === playerData?.playerId && <span className={styles.youBadge}> (you)</span>}
+              </span>
             </div>
           ))}
         </div>
@@ -77,11 +88,20 @@ export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart
             <button className="verdict-btn verdict-btn-primary" disabled={!canStart} onClick={handleStartGame}>
               {canStart ? '🚀 Start Game' : `Waiting for ${waiting} more…`}
             </button>
-            {startError && <p style={{color:'#e63946',fontSize:'12px',marginTop:'6px',textAlign:'center'}}>⚠️ {startError}</p>}
+            {startError && <p style={{ color: '#e63946', fontSize: '12px', marginTop: '6px', textAlign: 'center' }}>⚠️ {startError}</p>}
           </>
         )}
         <button className="verdict-btn verdict-btn-secondary" onClick={onLeave}>Leave Room</button>
       </div>
     </div>
   )
+}
+
+function isUUID(str) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str)
+}
+
+function shortenId(id) {
+  // Last 6 chars of UUID as fallback name
+  return id?.slice(-6) || 'Player'
 }
