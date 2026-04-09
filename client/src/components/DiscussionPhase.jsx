@@ -5,7 +5,8 @@ import EvidenceBoard from './EvidenceBoard'
 import { ConfessionDemand, ConfessionPrompt } from './ConfessionBooth'
 import { SFX, screenShake, flashScreen } from '../hooks/useSound'
 
-const ALIGNMENT_COLOR = { evil: '#e63946', good: '#00b4d8' }
+const ALIGNMENT_COLOR = { evil: 'var(--theme-accent-evil, #e63946)', good: 'var(--theme-accent-good, #00b4d8)' }
+const QUICK_REACTIONS = ['👀', '🔥', '💀', '🤔', '✅']
 
 export default function DiscussionPhase({
   theme, myRole, players, messages, timer,
@@ -15,6 +16,8 @@ export default function DiscussionPhase({
   const [input, setInput] = useState('')
   const [showConfessionBooth, setShowConfessionBooth] = useState(false)
   const [usedConfession, setUsedConfession] = useState(false)
+  const [reactions, setReactions] = useState({}) // { msgIndex: { emoji: count } }
+  const [hoveredMsg, setHoveredMsg] = useState(null)
   const chatRef = useRef(null)
   const prevTimer = useRef(timer)
 
@@ -24,9 +27,7 @@ export default function DiscussionPhase({
   }, [messages])
 
   useEffect(() => {
-    if (timer <= 10 && timer > 0 && timer !== prevTimer.current) {
-      SFX.heartbeat()
-    }
+    if (timer <= 10 && timer > 0 && timer !== prevTimer.current) SFX.heartbeat()
     prevTimer.current = timer
   }, [timer])
 
@@ -34,7 +35,7 @@ export default function DiscussionPhase({
   const secs = String(timer % 60).padStart(2, '0')
   const isUrgent = timer > 0 && timer <= 30
   const roleName = myRole?.roleName || '???'
-  const accentColor = ALIGNMENT_COLOR[myRole?.alignment] || '#7b2d8b'
+  const accentColor = ALIGNMENT_COLOR[myRole?.alignment] || 'var(--theme-accent-primary, #7b2d8b)'
 
   function send() {
     const t = input.trim()
@@ -56,10 +57,23 @@ export default function DiscussionPhase({
     onDemandConfession(target, question)
   }
 
+  function addReaction(msgIndex, emoji) {
+    setReactions(prev => {
+      const msgReactions = prev[msgIndex] || {}
+      return {
+        ...prev,
+        [msgIndex]: {
+          ...msgReactions,
+          [emoji]: (msgReactions[emoji] || 0) + 1
+        }
+      }
+    })
+    setHoveredMsg(null)
+  }
+
   return (
     <div className={styles.container}>
 
-      {/* Confession demand panel */}
       {showConfessionBooth && !usedConfession && (
         <ConfessionDemand
           players={players}
@@ -69,14 +83,11 @@ export default function DiscussionPhase({
         />
       )}
 
-      {/* Forced confession — answered here, result sent via onAnswerConfession */}
       {confessionRequest && (
         <ConfessionPrompt
           confession={{ targetName: myRole?.playerName, askerName: confessionRequest.from, question: confessionRequest.question }}
           myPlayerName={myRole?.playerName}
-          onAnswer={(ans) => {
-            onAnswerConfession(ans)
-          }}
+          onAnswer={(ans) => onAnswerConfession(ans)}
         />
       )}
 
@@ -88,22 +99,19 @@ export default function DiscussionPhase({
         </div>
       </div>
 
-      {/* Trust meters */}
       <TrustMeter
         players={players.filter(p => p.isAlive !== false)}
         trustScores={trustScores || {}}
         myPlayerName={myRole?.playerName}
       />
 
-      {/* 3-column body (desktop) / stacked (mobile) */}
       <div className={styles.body}>
-
         {/* Evidence board — left / hidden on mobile */}
         <div className={styles.evidenceCol}>
           <EvidenceBoard events={evidenceEvents || []} />
         </div>
 
-        {/* Chat — center */}
+        {/* Chat */}
         <div className={styles.chatPanel}>
           <div className={styles.chatMessages} ref={chatRef}>
             {messages.length === 0 && (
@@ -113,24 +121,57 @@ export default function DiscussionPhase({
               </div>
             )}
             {messages.map((m, i) => (
-              <div key={i} className={`
-                ${styles.message}
-                ${m.isSpirit ? styles.spiritMsg : ''}
-                ${m.isSystem ? styles.systemMsg : ''}
-                ${m.isObserver ? styles.observerMsg : ''}
-                ${m.isConfession ? styles.confessionMsg : ''}
-              `}>
+              <div
+                key={i}
+                className={`
+                  ${styles.message}
+                  ${m.isSpirit ? styles.spiritMsg : ''}
+                  ${m.isSystem ? styles.systemMsg : ''}
+                  ${m.isObserver ? styles.observerMsg : ''}
+                  ${m.isConfession ? styles.confessionMsg : ''}
+                `}
+                onMouseEnter={() => setHoveredMsg(i)}
+                onMouseLeave={() => setHoveredMsg(null)}
+              >
                 <span className={styles.msgName}>{m.playerName}</span>
                 <span className={styles.msgText}>{m.text}</span>
+
+                {/* Reaction bar — shows on hover */}
+                {hoveredMsg === i && !m.isSystem && (
+                  <div className={styles.reactionBar}>
+                    {QUICK_REACTIONS.map(emoji => (
+                      <button
+                        key={emoji}
+                        className={styles.reactionBtn}
+                        onClick={() => addReaction(i, emoji)}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Show accumulated reactions */}
+                {reactions[i] && Object.keys(reactions[i]).length > 0 && (
+                  <div className={styles.reactionChips}>
+                    {Object.entries(reactions[i]).map(([emoji, count]) => (
+                      <span
+                        key={emoji}
+                        className={styles.reactionChip}
+                        onClick={() => addReaction(i, emoji)}
+                      >
+                        {emoji} {count}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>
 
           <div className={styles.inputRow}>
             {isEliminated && (
-              <div className={styles.spiritBanner}>
-                👻 You are a Spirit — message anonymous
-              </div>
+              <div className={styles.spiritBanner}>👻 You are a Spirit — message anonymous</div>
             )}
             <div className={styles.inputArea}>
               <input
@@ -146,7 +187,7 @@ export default function DiscussionPhase({
           </div>
         </div>
 
-        {/* Players + role — right / bottom on mobile */}
+        {/* Players + role — right */}
         <div className={styles.sidePanel}>
           <div className={styles.sideLabel}>PLAYERS</div>
           {players.filter(p => p.isAlive !== false).map(p => {
@@ -163,15 +204,12 @@ export default function DiscussionPhase({
                     className={styles.accuseBtn}
                     onClick={() => handleAccuse(p.playerName)}
                     title="Formally accuse — triggers vote"
-                  >
-                    ⚠️
-                  </button>
+                  >⚠️</button>
                 )}
               </div>
             )
           })}
 
-          {/* Confession booth button */}
           {!isEliminated && (
             <button
               className={`${styles.confessionBtn} ${usedConfession ? styles.used : ''}`}
@@ -182,7 +220,6 @@ export default function DiscussionPhase({
             </button>
           )}
 
-          {/* My role card */}
           {myRole && (
             <div className={styles.myRoleCard} style={{ '--role-color': accentColor }}>
               <div className={styles.myRoleLabel}>YOUR ROLE</div>

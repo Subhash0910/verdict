@@ -2,8 +2,27 @@ import React, { useState, useEffect } from 'react'
 import styles from './RoleRevealCard.module.css'
 
 const ALIGNMENT_COLORS = {
-  evil: { bg: '#1a0005', accent: '#e63946', glow: '#e63946' },
-  good: { bg: '#000d1a', accent: '#00b4d8', glow: '#00b4d8' },
+  evil: { bg: 'var(--theme-bg-primary, #1a0005)', accent: 'var(--theme-accent-evil, #e63946)', glow: '#e63946' },
+  good: { bg: 'var(--theme-bg-primary, #000d1a)', accent: 'var(--theme-accent-good, #00b4d8)', glow: '#00b4d8' },
+}
+
+// Derive rarity tier from role name (deterministic hash)
+function getRarity(roleName) {
+  if (!roleName) return 'COMMON'
+  let hash = 0
+  for (let i = 0; i < roleName.length; i++) hash = roleName.charCodeAt(i) + ((hash << 5) - hash)
+  const val = Math.abs(hash) % 100
+  if (val < 50) return 'COMMON'
+  if (val < 75) return 'RARE'
+  if (val < 92) return 'LEGENDARY'
+  return 'MYTHIC'
+}
+
+const RARITY_STYLES = {
+  COMMON:    { color: '#888',    glow: 'none',                      label: 'COMMON' },
+  RARE:      { color: '#4a9eff', glow: '0 0 10px rgba(74,158,255,0.5)',  label: '✦ RARE' },
+  LEGENDARY: { color: '#f7b731', glow: '0 0 14px rgba(247,183,49,0.6)',  label: '★ LEGENDARY' },
+  MYTHIC:    { color: '#c77dff', glow: '0 0 18px rgba(199,125,255,0.7)', label: '◆ MYTHIC' },
 }
 
 function useTypewriter(text, delay = 30, startNow = false) {
@@ -22,9 +41,11 @@ function useTypewriter(text, delay = 30, startNow = false) {
 }
 
 export default function RoleRevealCard({ roleName, alignment, winCondition, ability, restriction, onReady }) {
-  const [step, setStep] = useState(0) // 0=front, 1=name, 2=win, 3=ability, 4=restriction, 5=done
+  const [step, setStep] = useState(0)
   const [showParticles, setShowParticles] = useState(false)
   const colors = ALIGNMENT_COLORS[alignment] || ALIGNMENT_COLORS.good
+  const rarity = getRarity(roleName)
+  const rarityStyle = RARITY_STYLES[rarity]
 
   const twName        = useTypewriter(roleName,     28, step >= 1)
   const twWin         = useTypewriter(winCondition, 22, step >= 2)
@@ -42,41 +63,37 @@ export default function RoleRevealCard({ roleName, alignment, winCondition, abil
 
   function handleReveal() {
     if (step !== 0) return
-    // Fire particle burst on tap
     setShowParticles(true)
     setTimeout(() => setShowParticles(false), 900)
     setStep(1)
   }
 
   const particleCount = 24
-  const particleColor = colors.accent
 
   return (
-    <div className={styles.scene} style={{ '--accent': colors.accent, '--glow': colors.glow, '--bg': colors.bg }}>
+    <div
+      className={styles.scene}
+      style={{
+        '--accent': colors.accent,
+        '--glow': colors.glow,
+        '--bg': colors.bg,
+        background: `radial-gradient(ellipse at 50% 40%, var(--theme-bg-secondary, #18002a) 0%, var(--theme-bg-primary, #060608) 70%)`
+      }}
+    >
       <div className={styles.label}>YOUR ROLE — READ CAREFULLY</div>
 
-      {/* Particle burst on flip */}
       {showParticles && (
         <div className={styles.particleWrap}>
           {[...Array(particleCount)].map((_, i) => (
-            <div
-              key={i}
-              className={styles.particle}
-              style={{
-                '--angle': `${(i / particleCount) * 360}deg`,
-                '--color': particleColor,
-                '--delay': `${i * 20}ms`
-              }}
+            <div key={i} className={styles.particle}
+              style={{ '--angle': `${(i / particleCount) * 360}deg`, '--color': colors.glow, '--delay': `${i * 20}ms` }}
             />
           ))}
         </div>
       )}
 
       <div className={styles.cardScene}>
-        <div
-          className={`${styles.card} ${step > 0 ? styles.revealed : ''}`}
-          onClick={handleReveal}
-        >
+        <div className={`${styles.card} ${step > 0 ? styles.revealed : ''}`} onClick={handleReveal}>
           {/* FRONT */}
           <div className={styles.front}>
             <div className={styles.pattern} />
@@ -86,6 +103,14 @@ export default function RoleRevealCard({ roleName, alignment, winCondition, abil
 
           {/* BACK */}
           <div className={styles.back}>
+            {/* Rarity badge */}
+            <div
+              className={styles.rarityBadge}
+              style={{ color: rarityStyle.color, boxShadow: rarityStyle.glow, borderColor: rarityStyle.color }}
+            >
+              {rarityStyle.label}
+            </div>
+
             <div className={`${styles.alignBadge} ${styles[alignment]}`}>
               {alignment === 'evil' ? '☠ ANTAGONIST' : '✦ COOPERATOR'}
             </div>
@@ -120,12 +145,12 @@ export default function RoleRevealCard({ roleName, alignment, winCondition, abil
 
       {step >= 5 && (
         <button className={styles.readyBtn} onClick={onReady}>
-          I understand — Let’s play →
+          I understand — Let's play →
         </button>
       )}
 
       <div className={styles.timer}>
-        {step === 0 ? 'Others cannot see your role' : step < 5 ? 'Reading your role...' : '🔥 You’re ready. Don’t reveal your role.'}
+        {step === 0 ? 'Others cannot see your role' : step < 5 ? 'Reading your role...' : '🔥 You\'re ready. Don\'t reveal your role.'}
       </div>
     </div>
   )
