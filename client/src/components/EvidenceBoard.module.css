@@ -1,0 +1,29 @@
+@keyframes slamIn {
+  from{opacity:0;transform:translateX(-20px) scaleX(0.95)}
+  to{opacity:1;transform:translateX(0) scaleX(1)}
+}
+
+.container {
+  display:flex; flex-direction:column; gap:6px;
+  padding:10px; overflow-y:auto; flex:1;
+}
+.label {
+  font-size:8px; letter-spacing:4px; color:#2a2a3a;
+  text-transform:uppercase; padding-bottom:6px;
+  border-bottom:1px solid #1a1a2e; margin-bottom:2px; flex-shrink:0;
+}
+.empty { font-size:11px; color:#222; text-align:center; margin-top:20px; }
+.list { display:flex; flex-direction:column; gap:5px; }
+.item {
+  display:flex; align-items:flex-start; gap:6px;
+  padding:7px 8px; border-radius:7px;
+  background:#0f0f1c; border-left:2px solid #2a2a3a;
+  font-size:11px; color:#888; line-height:1.4;
+  animation:slamIn 0.35s cubic-bezier(0.34,1.56,0.64,1) both;
+}
+.item.ability { border-left-color:#7b2d8b; color:#bbb; }
+.item.confession { border-left-color:#e63946; color:#ccc; }
+.item.observer { border-left-color:#f7b731; color:#ddd; }
+.item.alliance { border-left-color:#00b4d8; color:#bbb; }
+.icon { flex-shrink:0; font-size:13px; margin-top:1px; }
+.text { word-break:break-word; }

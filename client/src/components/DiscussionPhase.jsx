@@ -1,23 +1,42 @@
 import React, { useState, useRef, useEffect } from 'react'
 import styles from './DiscussionPhase.module.css'
+import TrustMeter from './TrustMeter'
+import EvidenceBoard from './EvidenceBoard'
+import ConfessionBooth from './ConfessionBooth'
+import ConfessionPrompt from './ConfessionPrompt'
+import { SFX, screenShake, flashScreen } from '../hooks/useSound'
 
 const ALIGNMENT_COLOR = { evil: '#e63946', good: '#00b4d8' }
 
 export default function DiscussionPhase({
-  theme, myRole, players, messages, timer, isEliminated, onSendChat, onAccuse
+  theme, myRole, players, messages, timer,
+  isEliminated, onSendChat, onAccuse, onConfessionDemand,
+  confessionRequest, trustScores, evidenceEvents
 }) {
   const [input, setInput] = useState('')
-  const [accused, setAccused] = useState(null)
+  const [showConfessionBooth, setShowConfessionBooth] = useState(false)
+  const [usedConfession, setUsedConfession] = useState(false)
   const chatRef = useRef(null)
+  const prevTimer = useRef(timer)
 
   useEffect(() => {
     if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight
+    // Play tick for new messages
+    SFX.tick()
   }, [messages])
+
+  // Urgent heartbeat
+  useEffect(() => {
+    if (timer <= 10 && timer > 0 && timer !== prevTimer.current) {
+      SFX.heartbeat()
+    }
+    prevTimer.current = timer
+  }, [timer])
 
   const mins = String(Math.floor(timer / 60)).padStart(2, '0')
   const secs = String(timer % 60).padStart(2, '0')
   const isUrgent = timer > 0 && timer <= 30
-  const roleName = myRole?.roleName || myRole?.role || '???'
+  const roleName = myRole?.roleName || '???'
   const accentColor = ALIGNMENT_COLOR[myRole?.alignment] || '#7b2d8b'
 
   function send() {
@@ -28,14 +47,41 @@ export default function DiscussionPhase({
   }
 
   function handleAccuse(playerName) {
-    setAccused(playerName)
-    onSendChat?.(`🔴 I accuse ${playerName} — they're not who they say they are.`)
+    SFX.accuse()
+    flashScreen('rgba(230,57,70,0.4)', 200)
+    screenShake(10, 400)
+    onAccuse(playerName)
+  }
+
+  function handleConfessionDemand(target, question) {
+    setUsedConfession(true)
+    onConfessionDemand(target, question)
   }
 
   return (
     <div className={styles.container}>
 
-      {/* ── Top bar ── */}
+      {/* Confession modals */}
+      {showConfessionBooth && !usedConfession && (
+        <ConfessionBooth
+          players={players}
+          myPlayerName={myRole?.playerName}
+          usedConfession={usedConfession}
+          onDemand={handleConfessionDemand}
+          onClose={() => setShowConfessionBooth(false)}
+        />
+      )}
+      {confessionRequest && (
+        <ConfessionPrompt
+          from={confessionRequest.from}
+          question={confessionRequest.question}
+          onAnswer={(ans) => {
+            onSendChat(`[CONFESSION] ${ans}`)
+          }}
+        />
+      )}
+
+      {/* Header */}
       <div className={styles.header}>
         <div className={styles.themeTitle}>{theme || 'VERDICT'}</div>
         <div className={`${styles.timer} ${isUrgent ? styles.urgent : ''}`}>
@@ -43,72 +89,41 @@ export default function DiscussionPhase({
         </div>
       </div>
 
-      {/* ── Body: players left | chat right ── */}
+      {/* Trust meters — full width under header */}
+      <TrustMeter
+        players={players.filter(p => p.isAlive !== false)}
+        trustScores={trustScores || {}}
+        myPlayerName={myRole?.playerName}
+      />
+
+      {/* 3-column body */}
       <div className={styles.body}>
 
-        {/* Left — players + accuse */}
-        <div className={styles.sidebar}>
-          <div className={styles.sideLabel}>PLAYERS</div>
-          {players.length === 0 && (
-            <div className={styles.noPlayers}>Waiting for player list...</div>
-          )}
-          {players.map(p => {
-            const isMe = p.playerName === (myRole?.playerName)
-            const dead = p.isAlive === false
-            return (
-              <div key={p.playerId}
-                className={`${styles.playerCard} ${dead ? styles.dead : ''} ${accused === p.playerName ? styles.accused : ''}`}
-              >
-                <div className={styles.playerAvatar}>
-                  {dead ? '👻' : p.playerName?.[0]?.toUpperCase() ?? '?'}
-                </div>
-                <div className={styles.playerInfo}>
-                  <div className={styles.playerName}>
-                    {p.playerName}
-                    {isMe && <span className={styles.youBadge}> you</span>}
-                  </div>
-                  <div className={styles.playerStatus}>{dead ? 'eliminated' : 'alive'}</div>
-                </div>
-                {!isMe && !dead && !isEliminated && (
-                  <button
-                    className={`${styles.accuseBtn} ${accused === p.playerName ? styles.accuseActive : ''}`}
-                    onClick={() => handleAccuse(p.playerName)}
-                    title="Accuse this player"
-                  >
-                    {accused === p.playerName ? '🔴' : '⚠️'}
-                  </button>
-                )}
-              </div>
-            )
-          })}
-
-          {/* My role card in sidebar */}
-          {myRole && (
-            <div className={styles.myRoleCard} style={{ '--role-color': accentColor }}>
-              <div className={styles.myRoleLabel}>YOUR ROLE</div>
-              <div className={styles.myRoleName}>{roleName}</div>
-              <div className={styles.myRoleAlignment}>
-                {myRole.alignment === 'evil' ? '☠️ Antagonist' : '✦ Cooperator'}
-              </div>
-              <div className={styles.myRoleMission}>{myRole.winCondition || myRole.secretMission}</div>
-            </div>
-          )}
+        {/* Evidence board — left */}
+        <div className={styles.evidenceCol}>
+          <EvidenceBoard events={evidenceEvents || []} />
         </div>
 
-        {/* Right — chat */}
+        {/* Chat — center */}
         <div className={styles.chatPanel}>
           <div className={styles.chatMessages} ref={chatRef}>
             {messages.length === 0 && (
               <div className={styles.emptyChat}>
-                Discussion begins...<br />
-                <span style={{fontSize:'12px',color:'#333'}}>Debate, accuse, defend. Timer runs out → vote.</span>
+                The room is silent...<br />
+                <span style={{fontSize:'12px',color:'#2a2a3a'}}>
+                  Someone make a move.
+                </span>
               </div>
             )}
             {messages.map((m, i) => (
-              <div key={i} className={`${styles.message} ${m.isSpirit ? styles.spiritMsg : ''}`}>
-                <span className={styles.msgName} style={m.isSpirit ? {color:'#555',fontStyle:'italic'} : {}}>
-                  {m.playerName}
-                </span>
+              <div key={i} className={`
+                ${styles.message}
+                ${m.isSpirit ? styles.spiritMsg : ''}
+                ${m.isSystem ? styles.systemMsg : ''}
+                ${m.isObserver ? styles.observerMsg : ''}
+                ${m.isConfession ? styles.confessionMsg : ''}
+              `}>
+                <span className={styles.msgName}>{m.playerName}</span>
                 <span className={styles.msgText}>{m.text}</span>
               </div>
             ))}
@@ -117,7 +132,7 @@ export default function DiscussionPhase({
           <div className={styles.inputRow}>
             {isEliminated && (
               <div className={styles.spiritBanner}>
-                👻 You are a Spirit — your message will be anonymous
+                👻 You are a Spirit — message anonymous
               </div>
             )}
             <div className={styles.inputArea}>
@@ -126,12 +141,60 @@ export default function DiscussionPhase({
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && send()}
-                placeholder={isEliminated ? 'Send anonymous message...' : 'Say something...'}
+                placeholder={isEliminated ? 'Whisper from beyond...' : 'Speak your truth...'}
                 maxLength={200}
               />
               <button className={styles.sendBtn} onClick={send}>Send</button>
             </div>
           </div>
+        </div>
+
+        {/* Players + role — right */}
+        <div className={styles.sidePanel}>
+          <div className={styles.sideLabel}>PLAYERS</div>
+          {players.filter(p => p.isAlive !== false).map(p => {
+            const isMe = p.playerName === myRole?.playerName
+            return (
+              <div key={p.playerName} className={styles.playerRow}>
+                <div className={styles.playerAvatar}>{p.playerName[0].toUpperCase()}</div>
+                <div className={styles.playerName}>
+                  {p.playerName}
+                  {isMe && <span className={styles.youBadge}> you</span>}
+                </div>
+                {!isMe && !isEliminated && (
+                  <button
+                    className={styles.accuseBtn}
+                    onClick={() => handleAccuse(p.playerName)}
+                    title="Formally accuse — triggers vote"
+                  >
+                    ⚠️
+                  </button>
+                )}
+              </div>
+            )
+          })}
+
+          {/* Confession booth button */}
+          {!isEliminated && (
+            <button
+              className={`${styles.confessionBtn} ${usedConfession ? styles.used : ''}`}
+              onClick={() => !usedConfession && setShowConfessionBooth(true)}
+              disabled={usedConfession}
+            >
+              {usedConfession ? '🎤 Confession Used' : '🎤 Demand Confession'}
+            </button>
+          )}
+
+          {/* My role card */}
+          {myRole && (
+            <div className={styles.myRoleCard} style={{ '--role-color': accentColor }}>
+              <div className={styles.myRoleLabel}>YOUR ROLE</div>
+              <div className={styles.myRoleName}>{roleName}</div>
+              <div className={styles.myRoleAlignment}>
+                {myRole.alignment === 'evil' ? '☠️ Antagonist' : '✦ Cooperator'}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

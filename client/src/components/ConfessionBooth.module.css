@@ -1,0 +1,66 @@
+@keyframes slideUp { from{opacity:0;transform:translateY(40px)} to{opacity:1;transform:translateY(0)} }
+
+.overlay {
+  position:fixed; inset:0; background:rgba(0,0,0,0.85);
+  display:flex; align-items:center; justify-content:center;
+  z-index:1000; backdrop-filter:blur(4px);
+}
+.modal {
+  background:#0c0c18; border:1px solid #e63946;
+  border-radius:16px; padding:28px 32px;
+  width:90%; max-width:460px;
+  display:flex; flex-direction:column; gap:16px;
+  animation:slideUp 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  box-shadow:0 0 60px rgba(230,57,70,0.2);
+}
+.header { display:flex; flex-direction:column; gap:6px; }
+.title { font-size:20px; font-weight:900; letter-spacing:2px; color:#e63946; }
+.subtitle { font-size:12px; color:#555; }
+.sectionLabel { font-size:13px; color:#aaa; }
+
+.playerGrid { display:flex; flex-wrap:wrap; gap:8px; }
+.playerBtn {
+  display:flex; align-items:center; gap:8px;
+  background:#111120; border:1px solid #2a2a3a;
+  border-radius:10px; padding:10px 16px;
+  color:#ccc; cursor:pointer; font-size:14px;
+  transition:all 0.15s;
+}
+.playerBtn:hover { border-color:#e63946; color:#fff; }
+.playerBtn.selected { border-color:#e63946; background:rgba(230,57,70,0.1); color:#fff; }
+.avatar {
+  width:26px; height:26px; border-radius:50%;
+  background:#1a1a2e; display:flex; align-items:center;
+  justify-content:center; font-weight:700; font-size:12px;
+}
+
+.questionInput {
+  background:#111120; border:1px solid #2a2a3a;
+  border-radius:8px; padding:12px 16px;
+  color:#fff; font-size:15px; outline:none;
+  transition:border 0.2s; width:100%; box-sizing:border-box;
+}
+.questionInput:focus { border-color:#e63946; }
+.hint { font-size:11px; color:#444; }
+
+.actions { display:flex; gap:10px; }
+.backBtn {
+  background:none; border:1px solid #2a2a3a; border-radius:8px;
+  color:#666; padding:10px 16px; cursor:pointer; font-size:13px;
+  transition:all 0.15s;
+}
+.backBtn:hover { border-color:#555; color:#999; }
+.demandBtn {
+  flex:1; background:#e63946; border:none; border-radius:8px;
+  color:#fff; padding:12px; font-size:14px; font-weight:700;
+  cursor:pointer; transition:opacity 0.2s; letter-spacing:1px;
+}
+.demandBtn:disabled { opacity:0.3; cursor:not-allowed; }
+.demandBtn:not(:disabled):hover { opacity:0.85; }
+
+.closeBtn {
+  background:none; border:none; color:#333; cursor:pointer;
+  font-size:12px; letter-spacing:2px; text-transform:uppercase;
+  padding:4px; align-self:center;
+}
+.closeBtn:hover { color:#666; }
