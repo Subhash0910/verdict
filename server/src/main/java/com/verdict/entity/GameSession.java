@@ -7,8 +7,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 @Entity
 @Table(name = "game_sessions")
@@ -37,6 +36,17 @@ public class GameSession {
     @Column(name = "player_id")
     private List<String> playerIds = new ArrayList<>();
 
+    /**
+     * Maps playerId (UUID) -> displayName (what the user typed on HomeScreen)
+     * This is the source of truth for real names throughout the game.
+     */
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "session_player_names", joinColumns = @JoinColumn(name = "session_id"))
+    @MapKeyColumn(name = "player_id")
+    @Column(name = "display_name")
+    @Builder.Default
+    private Map<String, String> playerDisplayNames = new HashMap<>();
+
     @Column
     private int maxPlayers = 8;
 
@@ -53,6 +63,13 @@ public class GameSession {
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
         if (this.status == null) this.status = GameStatus.WAITING;
+    }
+
+    /** Resolve display name for a player, falling back to last-6 of UUID */
+    public String getDisplayName(String playerId) {
+        String name = playerDisplayNames.get(playerId);
+        if (name != null && !name.isBlank()) return name;
+        return playerId.length() > 6 ? playerId.substring(playerId.length() - 6) : playerId;
     }
 
     public enum GameStatus {

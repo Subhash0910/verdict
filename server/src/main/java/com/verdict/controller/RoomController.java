@@ -10,8 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 
 @RestController
 @RequestMapping("/api/rooms")
@@ -22,32 +21,28 @@ public class RoomController {
     private final GameSessionRepository sessionRepo;
     private final SimpMessagingTemplate messagingTemplate;
 
-    /**
-     * POST /api/rooms/create
-     * Creates a new game room and returns the room code.
-     */
     @PostMapping("/create")
     public ResponseEntity<RoomResponse> createRoom(@Valid @RequestBody CreateRoomRequest req) {
         String roomCode = generateUniqueRoomCode();
+
+        Map<String, String> names = new HashMap<>();
+        names.put(req.getHostPlayerId(), req.getHostDisplayName());
 
         GameSession session = GameSession.builder()
                 .roomCode(roomCode)
                 .hostPlayerId(req.getHostPlayerId())
                 .status(GameSession.GameStatus.WAITING)
                 .maxPlayers(req.getMaxPlayers())
-                .playerIds(List.of(req.getHostPlayerId()))
+                .playerIds(new ArrayList<>(List.of(req.getHostPlayerId())))
+                .playerDisplayNames(names)
                 .build();
 
         session = sessionRepo.save(session);
-        log.info("Room created: {} by host {}", roomCode, req.getHostPlayerId());
+        log.info("Room created: {} by '{}' ({})", roomCode, req.getHostDisplayName(), req.getHostPlayerId());
 
         return ResponseEntity.ok(toResponse(session));
     }
 
-    /**
-     * POST /api/rooms/{roomCode}/join
-     * Adds a player to an existing WAITING room.
-     */
     @PostMapping("/{roomCode}/join")
     public ResponseEntity<RoomResponse> joinRoom(
             @PathVariable String roomCode,
@@ -56,30 +51,22 @@ public class RoomController {
         GameSession session = sessionRepo.findByRoomCode(roomCode)
                 .orElseThrow(() -> new RuntimeException("Room not found: " + roomCode));
 
-        if (session.getStatus() != GameSession.GameStatus.WAITING) {
+        if (session.getStatus() != GameSession.GameStatus.WAITING)
             return ResponseEntity.badRequest().build();
-        }
-        if (session.getPlayerIds().size() >= session.getMaxPlayers()) {
+        if (session.getPlayerIds().size() >= session.getMaxPlayers())
             return ResponseEntity.badRequest().build();
-        }
-        if (session.getPlayerIds().contains(req.getPlayerId())) {
-            return ResponseEntity.ok(toResponse(session)); // already in room
-        }
+        if (session.getPlayerIds().contains(req.getPlayerId()))
+            return ResponseEntity.ok(toResponse(session));
 
         session.getPlayerIds().add(req.getPlayerId());
+        session.getPlayerDisplayNames().put(req.getPlayerId(), req.getDisplayName());
         session = sessionRepo.save(session);
-        log.info("Player {} joined room {}", req.getPlayerId(), roomCode);
+        log.info("Player '{}' ({}) joined room {}", req.getDisplayName(), req.getPlayerId(), roomCode);
 
-        // Broadcast lobby update over WebSocket
         broadcastLobbyUpdate(session, "PLAYER_JOINED");
-
         return ResponseEntity.ok(toResponse(session));
     }
 
-    /**
-     * GET /api/rooms/{roomCode}
-     * Fetch room info (for reconnect / initial load).
-     */
     @GetMapping("/{roomCode}")
     public ResponseEntity<RoomResponse> getRoom(@PathVariable String roomCode) {
         return sessionRepo.findByRoomCode(roomCode)
@@ -97,7 +84,7 @@ public class RoomController {
                 .players(session.getPlayerIds().stream()
                         .map(pid -> LobbyUpdateMessage.PlayerInfo.builder()
                                 .playerId(pid)
-                                .playerName(pid) // Phase 2: replace with real name from Redis
+                                .playerName(session.getDisplayName(pid)) // real display name
                                 .isHost(pid.equals(session.getHostPlayerId()))
                                 .build())
                         .toList())
@@ -107,7 +94,7 @@ public class RoomController {
     }
 
     private String generateUniqueRoomCode() {
-        String chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no ambiguous chars
+        String chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
         Random rnd = new Random();
         String code;
         do {
