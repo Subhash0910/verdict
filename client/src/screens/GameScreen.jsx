@@ -9,14 +9,10 @@ import VotingPhase from '../components/VotingPhase'
 import EliminationScreen from '../components/EliminationScreen'
 import GameOverScreen from '../components/GameOverScreen'
 import WorldEvent from '../components/WorldEvent'
+import SpectatorBanner from '../components/SpectatorBanner'
 import styles from './GameScreen.module.css'
 
-/**
- * GameScreen accepts either flat props (roomCode, playerId, playerName)
- * or object props (roomData, playerData) from App.jsx.
- */
-export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn, roomData, playerData, initialTheme, onExit, onPlayAgain }) {
-  // Resolve props — accept both flat and object form
+export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn, roomData, playerData, initialTheme, isSpectator, onExit, onPlayAgain }) {
   const roomCode   = rc   || roomData?.roomCode
   const playerId   = pid  || playerData?.playerId
   const playerName = pn   || playerData?.playerName
@@ -32,7 +28,7 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
   const [elimination, setElimination]       = useState(null)
   const [gameResult, setGameResult]         = useState(null)
   const [caseFile, setCaseFile]             = useState('')
-  const [gameStats, setGameStats]           = useState(null)   // ← new: stats from CASE_FILE
+  const [gameStats, setGameStats]           = useState(null)
   const [timer, setTimer]                   = useState(0)
   const [messages, setMessages]             = useState([])
   const [worldEvent, setWorldEvent]         = useState(null)
@@ -42,6 +38,7 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
   const [confessionRequest, setConfessionRequest] = useState(null)
   const [evidenceEvents, setEvidenceEvents] = useState([])
   const [resetting, setResetting]           = useState(false)
+  const [spectatorCount, setSpectatorCount] = useState(1)
 
   useGameTheme(theme)
 
@@ -49,10 +46,12 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
     fetch(`/api/game/${roomCode}/state`)
       .then(r => r.json())
       .then(state => {
-        if (!state) { setPhase('ROLE_REVEAL'); return }
+        if (!state) { setPhase(isSpectator ? 'SPECTATOR_WAITING' : 'ROLE_REVEAL'); return }
         if (state.theme) setTheme(state.theme)
-        const myRoleData = state.roles?.[playerName]
-        if (myRoleData) setMyRole({ ...myRoleData, playerName })
+        if (!isSpectator) {
+          const myRoleData = state.roles?.[playerName]
+          if (myRoleData) setMyRole({ ...myRoleData, playerName })
+        }
         if (state.allPlayers) {
           setPlayers(state.allPlayers.map(name => ({
             playerId: name, playerName: name,
@@ -60,11 +59,22 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
           })))
         }
         if (state.trustScores) setTrustScores(state.trustScores)
-        if (state.phase === 'DISCUSSION') { setPhase('DISCUSSION'); startTimer(90) }
-        else if (state.phase === 'ABILITY') { setPhase('ABILITY'); startTimer(60) }
-        else setPhase(myRoleData ? 'ROLE_REVEAL' : 'AWAITING_ROLE')
+        if (isSpectator) {
+          // Spectators skip to whichever phase is live
+          const p = state.phase
+          if (p === 'DISCUSSION') { setPhase('DISCUSSION'); startTimer(90) }
+          else if (p === 'ABILITY') { setPhase('ABILITY'); startTimer(60) }
+          else if (p === 'VOTING')  { setPhase('VOTING') }
+          else if (p === 'GAME_OVER') { setPhase('GAME_OVER') }
+          else setPhase('SPECTATOR_WAITING')
+        } else {
+          const myRoleData = state.roles?.[playerName]
+          if (state.phase === 'DISCUSSION') { setPhase('DISCUSSION'); startTimer(90) }
+          else if (state.phase === 'ABILITY') { setPhase('ABILITY'); startTimer(60) }
+          else setPhase(myRoleData ? 'ROLE_REVEAL' : 'AWAITING_ROLE')
+        }
       })
-      .catch(() => setPhase('AWAITING_ROLE'))
+      .catch(() => setPhase(isSpectator ? 'SPECTATOR_WAITING' : 'AWAITING_ROLE'))
   }, [])
 
   useEffect(() => {
@@ -72,16 +82,26 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
       webSocketFactory: () => new SockJS('/ws'),
       reconnectDelay: 3000,
       onConnect: () => {
+        // Main game topic — spectators receive all events
         client.subscribe(`/topic/game/${roomCode}`, msg => handleGameEvent(JSON.parse(msg.body)))
 
-        client.subscribe(`/topic/game/${roomCode}/role/${playerName}`, msg => {
-          const d = JSON.parse(msg.body)
-          if (d.type === 'ROLE_REVEAL') {
-            setMyRole({ roleName: d.roleName, alignment: d.alignment, flavorText: d.flavorText, winCondition: d.winCondition, ability: d.ability, restriction: d.restriction, playerName })
-            setPhase('ROLE_REVEAL')
-          }
-        })
+        // Role reveal (players only)
+        if (!isSpectator) {
+          client.subscribe(`/topic/game/${roomCode}/role/${playerName}`, msg => {
+            const d = JSON.parse(msg.body)
+            if (d.type === 'ROLE_REVEAL') {
+              setMyRole({ roleName: d.roleName, alignment: d.alignment, flavorText: d.flavorText, winCondition: d.winCondition, ability: d.ability, restriction: d.restriction, playerName })
+              setPhase('ROLE_REVEAL')
+            }
+          })
 
+          client.subscribe(`/topic/game/${roomCode}/confess/${playerName}`, msg => {
+            const d = JSON.parse(msg.body)
+            setConfessionRequest({ from: d.from, question: d.question })
+          })
+        }
+
+        // Chat — everyone including spectators sees messages
         client.subscribe(`/topic/game/${roomCode}/chat`, msg => {
           const m = JSON.parse(msg.body)
           setMessages(prev => [...prev, m])
@@ -99,21 +119,25 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
           }
         })
 
-        client.subscribe(`/topic/game/${roomCode}/confess/${playerName}`, msg => {
+        // Spectator count updates from lobby topic
+        client.subscribe(`/topic/lobby/${roomCode}`, msg => {
           const d = JSON.parse(msg.body)
-          setConfessionRequest({ from: d.from, question: d.question })
+          if (d.type === 'SPECTATOR_JOINED') {
+            setSpectatorCount(d.spectatorCount || 1)
+          }
         })
       }
     })
     client.activate()
     clientRef.current = client
     return () => { client.deactivate(); clearInterval(timerRef.current) }
-  }, [roomCode, playerName])
+  }, [roomCode, playerName, isSpectator])
 
   function handleGameEvent(data) {
     switch (data.type) {
       case 'ABILITY_PHASE_START':
-        setPhase('ABILITY'); startTimer(data.durationSeconds || 60); break
+        setPhase(isSpectator ? 'SPECTATOR_ABILITY_WATCH' : 'ABILITY')
+        startTimer(data.durationSeconds || 60); break
       case 'DISCUSSION_START':
         setPhase('DISCUSSION'); startTimer(90)
         if (data.abilityLog?.length > 0) {
@@ -134,7 +158,7 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
         setTrustScores(data.scores); break
       case 'ELIMINATION':
         clearInterval(timerRef.current)
-        if (data.eliminatedId === playerName) setIsEliminated(true)
+        if (!isSpectator && data.eliminatedId === playerName) setIsEliminated(true)
         setElimination(data)
         setPlayers(prev => prev.map(p =>
           p.playerName === data.eliminatedId ? { ...p, isAlive: false } : p
@@ -143,7 +167,6 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
         if (data.gameOver) setGameResult({ winner: data.winner })
         break
       case 'CASE_FILE':
-        // Capture stats alongside case file text
         setCaseFile(data.text || '')
         if (data.stats) setGameStats(data.stats)
         setPhase('GAME_OVER')
@@ -175,7 +198,7 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
   }
 
   function handleAccuse(targetName) {
-    if (targetName === playerName) return
+    if (isSpectator || targetName === playerName) return
     fetch(`/api/game/${roomCode}/accuse`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ accuserName: playerName, targetName })
@@ -183,6 +206,7 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
   }
 
   function handleDemandConfession(targetName, question) {
+    if (isSpectator) return
     fetch(`/api/game/${roomCode}/confess/demand`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ from: playerName, to: targetName, question })
@@ -190,6 +214,7 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
   }
 
   function handleAnswerConfession(answer) {
+    if (isSpectator) return
     fetch(`/api/game/${roomCode}/confess/answer`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ playerName, answer, question: confessionRequest?.question, from: confessionRequest?.from })
@@ -197,8 +222,8 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
     setConfessionRequest(null)
   }
 
-  // Chat now goes through REST so messages are counted for stats
   function sendChat(text) {
+    if (isSpectator) return  // spectators cannot chat
     if (isEliminated) {
       fetch(`/api/game/${roomCode}/spirit`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -213,15 +238,13 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
   }
 
   function castVote(targetId) {
-    if (targetId === playerName) return
+    if (isSpectator || targetId === playerName) return
     fetch(`/api/game/${roomCode}/vote`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ voterId: playerName, targetId })
     })
   }
 
-  // Play Again: call /reset, server broadcasts GAME_RESET to lobby topic,
-  // then navigate back to lobby (don't go all the way to HomeScreen)
   async function handlePlayAgain() {
     if (resetting) return
     setResetting(true)
@@ -231,12 +254,44 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
         body: JSON.stringify({ playerId })
       })
     } catch (e) {
-      console.warn('Reset failed, going home anyway', e)
+      console.warn('Reset failed', e)
     }
-    // onPlayAgain goes back to lobby; onExit goes all the way to HomeScreen
     const handler = onPlayAgain || onExit
     handler?.()
   }
+
+  // ── Spectator waiting (game not started yet) ──────────────────────────────
+  if (phase === 'SPECTATOR_WAITING') return (
+    <div className={styles.screen}>
+      <SpectatorBanner spectatorCount={spectatorCount} />
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+        <div style={{ color: '#333', letterSpacing: '4px', fontSize: '11px', textTransform: 'uppercase' }}>
+          Waiting for game to start...
+        </div>
+        <div style={{ color: '#1a1a2e', fontSize: '10px', letterSpacing: '2px' }}>
+          You are in spectator mode
+        </div>
+      </div>
+    </div>
+  )
+
+  // ── Spectator ability phase watch (no controls) ──────────────────────────
+  if (phase === 'SPECTATOR_ABILITY_WATCH') return (
+    <div className={styles.screen}>
+      <SpectatorBanner spectatorCount={spectatorCount} />
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', marginTop: '60px' }}>
+        <div style={{ color: '#2a2a3e', letterSpacing: '5px', fontSize: '10px', textTransform: 'uppercase' }}>
+          \u26A1 Ability Phase
+        </div>
+        <div style={{ color: '#1a1a2e', letterSpacing: '3px', fontSize: '9px' }}>
+          Players are using their abilities...
+        </div>
+        <div style={{ color: '#7b2d8b', fontSize: '28px', fontWeight: 900, letterSpacing: '3px' }}>
+          {timer > 0 ? timer : ''}
+        </div>
+      </div>
+    </div>
+  )
 
   if (phase === 'LOADING') return (
     <div className={styles.screen}>
@@ -246,9 +301,13 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
 
   return (
     <div className={styles.screen}>
+      {/* Spectator banner — always visible when in spectator mode */}
+      {isSpectator && <SpectatorBanner spectatorCount={spectatorCount} />}
+
       {worldEvent && <WorldEvent event={worldEvent} onDismiss={() => setWorldEvent(null)} />}
 
-      {(phase === 'ROLE_REVEAL' || phase === 'AWAITING_ROLE') && (
+      {/* Role reveal — players only */}
+      {!isSpectator && (phase === 'ROLE_REVEAL' || phase === 'AWAITING_ROLE') && (
         myRole
           ? <RoleRevealCard
               roleName={myRole.roleName}
@@ -264,7 +323,8 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
             </div>
       )}
 
-      {phase === 'ABILITY' && (
+      {/* Ability phase — players only */}
+      {!isSpectator && phase === 'ABILITY' && (
         <AbilityPhase
           myRole={{ ...myRole, playerName }}
           players={players.filter(p => p.isAlive !== false)}
@@ -274,25 +334,28 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
         />
       )}
 
+      {/* Discussion — players get full controls; spectators get read-only chat */}
       {(phase === 'DISCUSSION' || phase === 'AWAITING_DISCUSSION') && (
         <DiscussionPhase
           theme={theme}
-          myRole={{ ...myRole, playerName }}
+          myRole={isSpectator ? { roleName: 'Observer', alignment: 'spectator', playerName } : { ...myRole, playerName }}
           players={players}
           messages={messages}
           timer={timer}
-          isEliminated={isEliminated}
+          isEliminated={isSpectator ? true : isEliminated}  // spectators treated as eliminated for chat
+          readOnly={isSpectator}
           trustScores={trustScores}
           evidenceEvents={evidenceEvents}
-          onSendChat={sendChat}
-          onAccuse={handleAccuse}
-          onDemandConfession={handleDemandConfession}
-          confessionRequest={confessionRequest}
-          onAnswerConfession={handleAnswerConfession}
+          onSendChat={isSpectator ? () => {} : sendChat}
+          onAccuse={isSpectator ? () => {} : handleAccuse}
+          onDemandConfession={isSpectator ? () => {} : handleDemandConfession}
+          confessionRequest={isSpectator ? null : confessionRequest}
+          onAnswerConfession={isSpectator ? () => {} : handleAnswerConfession}
         />
       )}
 
-      {phase === 'VOTING' && (
+      {/* Voting — players only; spectators see a read-only tally */}
+      {phase === 'VOTING' && !isSpectator && (
         <VotingPhase
           players={players.filter(p => p.isAlive !== false && p.playerName !== playerName)}
           votes={votes}
@@ -302,10 +365,28 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
         />
       )}
 
+      {/* Spectator voting view — live tally, no buttons */}
+      {phase === 'VOTING' && isSpectator && (
+        <div className={styles.screen} style={{ flexDirection: 'column', gap: '16px' }}>
+          <SpectatorBanner spectatorCount={spectatorCount} />
+          <div style={{ color: '#2a2a3e', letterSpacing: '5px', fontSize: '10px', textTransform: 'uppercase', marginTop: '60px' }}>
+            \uD83D\uDDF3 Voting in progress
+          </div>
+          {Object.entries(votes).map(([target, count]) => (
+            <div key={target} style={{ color: '#333', fontSize: '13px', letterSpacing: '2px' }}>
+              {target}: <span style={{ color: '#e63946', fontWeight: 900 }}>{count}</span> vote{count !== 1 ? 's' : ''}
+            </div>
+          ))}
+        </div>
+      )}
+
       {phase === 'ELIMINATION' && elimination && (
         <EliminationScreen
           elimination={elimination}
-          onContinue={() => { setPhase('ABILITY'); startTimer(60) }}
+          onContinue={() => {
+            if (isSpectator) setPhase('SPECTATOR_ABILITY_WATCH')
+            else { setPhase('ABILITY'); startTimer(60) }
+          }}
         />
       )}
 
@@ -322,7 +403,6 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
         />
       )}
 
-      {/* Resetting overlay */}
       {resetting && (
         <div style={{
           position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)',

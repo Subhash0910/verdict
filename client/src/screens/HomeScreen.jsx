@@ -1,47 +1,28 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { v4 as uuidv4 } from 'uuid'
-import { createRoom, joinRoom } from '../api/roomApi'
+import { createRoom, joinRoom, spectateRoom } from '../api/roomApi'
 import styles from './HomeScreen.module.css'
 
 const HOW_TO_PLAY_STEPS = [
-  {
-    emoji: '\uD83C\uDFAD',
-    title: 'Secret Roles',
-    desc: 'Everyone gets a unique AI-generated role \u2014 Cooperator or Antagonist. Only you see yours.'
-  },
-  {
-    emoji: '\u26A1',
-    title: 'Use Your Ability',
-    desc: 'Each role has a special one-time ability. Spy on someone, plant evidence, swap votes \u2014 use it wisely.'
-  },
-  {
-    emoji: '\uD83D\uDCAC',
-    title: 'Discuss & Deceive',
-    desc: 'Chat with everyone. Accuse suspects. Demand confessions. Watch the Trust Meter shift in real-time.'
-  },
-  {
-    emoji: '\uD83D\uDDF3\uFE0F',
-    title: 'Vote & Win',
-    desc: 'Nominate and vote out players. Cooperators win by removing all Antagonists. Antagonists win by surviving.'
-  }
+  { emoji: '\uD83C\uDFAD', title: 'Secret Roles', desc: 'Everyone gets a unique AI-generated role \u2014 Cooperator or Antagonist. Only you see yours.' },
+  { emoji: '\u26A1',       title: 'Use Your Ability', desc: 'Each role has a special one-time ability. Spy on someone, plant evidence, swap votes \u2014 use it wisely.' },
+  { emoji: '\uD83D\uDCAC', title: 'Discuss & Deceive', desc: 'Chat with everyone. Accuse suspects. Demand confessions. Watch the Trust Meter shift in real-time.' },
+  { emoji: '\uD83D\uDDF3\uFE0F', title: 'Vote & Win', desc: 'Nominate and vote out players. Cooperators win by removing all Antagonists. Antagonists win by surviving.' }
 ]
 
 export default function HomeScreen({ onRoomReady, onEnterLobby }) {
-  // Accept both prop names for compatibility
   const handleRoomReady = onRoomReady || onEnterLobby
 
-  const [mode, setMode]       = useState(null)  // 'create' | 'join'
-  const [name, setName]       = useState('')
-  const [roomCode, setRoomCode] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError]     = useState('')
-  const [showHowTo, setShowHowTo]   = useState(false)
-  const [howToStep, setHowToStep]   = useState(0)
+  const [mode, setMode]           = useState(null)   // 'create' | 'join'
+  const [joinType, setJoinType]   = useState('play')  // 'play' | 'watch'
+  const [name, setName]           = useState('')
+  const [roomCode, setRoomCode]   = useState('')
+  const [loading, setLoading]     = useState(false)
+  const [error, setError]         = useState('')
+  const [showHowTo, setShowHowTo] = useState(false)
+  const [howToStep, setHowToStep] = useState(0)
 
-  // Deep link + PWA shortcut autofill
-  // Priority: sessionStorage (set by App.jsx after stripping ?query) > URL param (fallback)
   useEffect(() => {
-    // 1. Check sessionStorage first (App.jsx stores it before stripping the URL)
     const ssJoin   = sessionStorage.getItem('verdict_autojoin')
     const ssAction = sessionStorage.getItem('verdict_autoaction')
 
@@ -51,26 +32,12 @@ export default function HomeScreen({ onRoomReady, onEnterLobby }) {
       sessionStorage.removeItem('verdict_autojoin')
       return
     }
+    if (ssAction === 'create') { setMode('create'); sessionStorage.removeItem('verdict_autoaction'); return }
+    if (ssAction === 'join')   { setMode('join');   sessionStorage.removeItem('verdict_autoaction'); return }
 
-    if (ssAction === 'create') {
-      setMode('create')
-      sessionStorage.removeItem('verdict_autoaction')
-      return
-    }
-
-    if (ssAction === 'join') {
-      setMode('join')
-      sessionStorage.removeItem('verdict_autoaction')
-      return
-    }
-
-    // 2. Fallback: read ?join= directly (e.g. if App.jsx hasn't stripped it yet)
     const params = new URLSearchParams(window.location.search)
     const code = params.get('join')
-    if (code) {
-      setRoomCode(code.toUpperCase())
-      setMode('join')
-    }
+    if (code) { setRoomCode(code.toUpperCase()); setMode('join') }
   }, [])
 
   const playerId = useMemo(() => {
@@ -84,7 +51,7 @@ export default function HomeScreen({ onRoomReady, onEnterLobby }) {
     setLoading(true); setError('')
     try {
       const res = await createRoom(playerId, name.trim())
-      handleRoomReady(res.data, { playerId, playerName: name.trim(), isHost: true })
+      handleRoomReady(res.data, { playerId, playerName: name.trim(), isHost: true, isSpectator: false })
     } catch (e) {
       setError(e.response?.data?.error || 'Failed to create room')
     } finally { setLoading(false) }
@@ -95,8 +62,13 @@ export default function HomeScreen({ onRoomReady, onEnterLobby }) {
     if (!roomCode.trim()) return setError('Enter a room code')
     setLoading(true); setError('')
     try {
-      const res = await joinRoom(roomCode.toUpperCase().trim(), playerId, name.trim())
-      handleRoomReady(res.data, { playerId, playerName: name.trim(), isHost: false })
+      if (joinType === 'watch') {
+        const res = await spectateRoom(roomCode.toUpperCase().trim(), playerId, name.trim())
+        handleRoomReady(res.data, { playerId, playerName: name.trim(), isHost: false, isSpectator: true })
+      } else {
+        const res = await joinRoom(roomCode.toUpperCase().trim(), playerId, name.trim())
+        handleRoomReady(res.data, { playerId, playerName: name.trim(), isHost: false, isSpectator: false })
+      }
     } catch (e) {
       setError(e.response?.data?.error || 'Room not found or full')
     } finally { setLoading(false) }
@@ -104,7 +76,6 @@ export default function HomeScreen({ onRoomReady, onEnterLobby }) {
 
   return (
     <div className={styles.container}>
-      {/* HOW TO PLAY MODAL */}
       {showHowTo && (
         <div className={styles.modalOverlay} onClick={() => setShowHowTo(false)}>
           <div className={styles.modal} onClick={e => e.stopPropagation()}>
@@ -115,22 +86,15 @@ export default function HomeScreen({ onRoomReady, onEnterLobby }) {
             </div>
             <div className={styles.stepDots}>
               {HOW_TO_PLAY_STEPS.map((_, i) => (
-                <span
-                  key={i}
-                  className={`${styles.dot} ${i === howToStep ? styles.dotActive : ''}`}
-                  onClick={() => setHowToStep(i)}
-                />
+                <span key={i} className={`${styles.dot} ${i === howToStep ? styles.dotActive : ''}`} onClick={() => setHowToStep(i)} />
               ))}
             </div>
             <div className={styles.modalActions}>
-              {howToStep > 0 && (
-                <button className={styles.modalBack} onClick={() => setHowToStep(s => s - 1)}>← Back</button>
-              )}
-              {howToStep < HOW_TO_PLAY_STEPS.length - 1 ? (
-                <button className="verdict-btn verdict-btn-primary" onClick={() => setHowToStep(s => s + 1)}>Next →</button>
-              ) : (
-                <button className="verdict-btn verdict-btn-primary" onClick={() => setShowHowTo(false)}>Let's Play \uD83D\uDD25</button>
-              )}
+              {howToStep > 0 && <button className={styles.modalBack} onClick={() => setHowToStep(s => s - 1)}>← Back</button>}
+              {howToStep < HOW_TO_PLAY_STEPS.length - 1
+                ? <button className="verdict-btn verdict-btn-primary" onClick={() => setHowToStep(s => s + 1)}>Next \u2192</button>
+                : <button className="verdict-btn verdict-btn-primary" onClick={() => setShowHowTo(false)}>Let's Play \uD83D\uDD25</button>
+              }
             </div>
           </div>
         </div>
@@ -157,8 +121,26 @@ export default function HomeScreen({ onRoomReady, onEnterLobby }) {
           </div>
         ) : (
           <div className={styles.form}>
-            <button className={styles.back} onClick={() => { setMode(null); setError('') }}>← Back</button>
+            <button className={styles.back} onClick={() => { setMode(null); setError(''); setJoinType('play') }}>← Back</button>
             <h2>{mode === 'create' ? 'Create a Room' : 'Join a Room'}</h2>
+
+            {/* Play / Watch toggle — only in join mode */}
+            {mode === 'join' && (
+              <div className={styles.joinTypeRow}>
+                <button
+                  className={`${styles.joinTypeBtn} ${joinType === 'play' ? styles.joinTypeActive : ''}`}
+                  onClick={() => setJoinType('play')}
+                >
+                  \uD83C\uDFAE Play
+                </button>
+                <button
+                  className={`${styles.joinTypeBtn} ${joinType === 'watch' ? styles.joinTypeActive : ''}`}
+                  onClick={() => setJoinType('watch')}
+                >
+                  \uD83D\uDC41 Watch
+                </button>
+              </div>
+            )}
 
             <input
               className="verdict-input"
@@ -189,8 +171,19 @@ export default function HomeScreen({ onRoomReady, onEnterLobby }) {
               onClick={mode === 'create' ? handleCreate : handleJoin}
               disabled={loading}
             >
-              {loading ? 'Loading...' : mode === 'create' ? 'Create Room' : 'Join Room'}
+              {loading
+                ? 'Loading...'
+                : mode === 'create'
+                  ? 'Create Room'
+                  : joinType === 'watch' ? '\uD83D\uDC41 Watch Game' : 'Join Room'
+              }
             </button>
+
+            {mode === 'join' && joinType === 'watch' && (
+              <p className={styles.watchNote}>
+                You'll observe the game live without playing a role.
+              </p>
+            )}
           </div>
         )}
       </div>

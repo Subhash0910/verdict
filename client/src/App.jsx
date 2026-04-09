@@ -10,34 +10,25 @@ function App() {
   const [playerData, setPlayerData] = useState(null)
   const [gameTheme, setGameTheme]   = useState('')
 
-  // Deep link query param handling
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const joinCode = params.get('join')
     const action   = params.get('action')
-    if (joinCode) {
-      sessionStorage.setItem('verdict_autojoin', joinCode)
-      window.history.replaceState({}, '', '/')
-    }
-    if (action) {
-      sessionStorage.setItem('verdict_autoaction', action)
-      window.history.replaceState({}, '', '/')
-    }
+    if (joinCode) { sessionStorage.setItem('verdict_autojoin', joinCode); window.history.replaceState({}, '', '/') }
+    if (action)   { sessionStorage.setItem('verdict_autoaction', action);  window.history.replaceState({}, '', '/') }
   }, [])
 
   function handleRoomReady(room, player) {
     setRoomData(room)
-    setPlayerData(player)
+    setPlayerData(player)  // now includes isSpectator boolean
     setScreen('lobby')
   }
 
-  function handleGameStart(theme, synopsis) {
+  function handleGameStart(theme) {
     setGameTheme(theme || '')
     setScreen('game')
   }
 
-  // Play Again: server reset already called by GameScreen.
-  // Just return to lobby — room + players are still joined.
   function handlePlayAgain() {
     setScreen('lobby')
   }
@@ -52,9 +43,7 @@ function App() {
   return (
     <>
       {screen === 'home' && (
-        <HomeScreen
-          onRoomReady={handleRoomReady}
-        />
+        <HomeScreen onRoomReady={handleRoomReady} />
       )}
 
       {screen === 'lobby' && (
@@ -71,6 +60,7 @@ function App() {
           roomData={roomData}
           playerData={playerData}
           initialTheme={gameTheme}
+          isSpectator={playerData?.isSpectator || false}
           onPlayAgain={handlePlayAgain}
           onExit={handleLeave}
         />

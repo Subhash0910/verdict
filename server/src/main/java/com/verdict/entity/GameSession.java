@@ -31,21 +31,32 @@ public class GameSession {
     @Column(nullable = false)
     private GameStatus status;
 
+    // ─ Players (participate in game, get roles) ────────────────────────────────
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "session_players", joinColumns = @JoinColumn(name = "session_id"))
     @Column(name = "player_id")
     private List<String> playerIds = new ArrayList<>();
 
-    /**
-     * Maps playerId (UUID) -> displayName (what the user typed on HomeScreen)
-     * This is the source of truth for real names throughout the game.
-     */
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "session_player_names", joinColumns = @JoinColumn(name = "session_id"))
     @MapKeyColumn(name = "player_id")
     @Column(name = "display_name")
     @Builder.Default
     private Map<String, String> playerDisplayNames = new HashMap<>();
+
+    // ─ Spectators (watch only, never get roles) ────────────────────────────
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "session_spectators", joinColumns = @JoinColumn(name = "session_id"))
+    @Column(name = "spectator_id")
+    @Builder.Default
+    private List<String> spectatorIds = new ArrayList<>();
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "session_spectator_names", joinColumns = @JoinColumn(name = "session_id"))
+    @MapKeyColumn(name = "spectator_id")
+    @Column(name = "display_name")
+    @Builder.Default
+    private Map<String, String> spectatorDisplayNames = new HashMap<>();
 
     @Column
     private int maxPlayers = 8;
@@ -65,11 +76,24 @@ public class GameSession {
         if (this.status == null) this.status = GameStatus.WAITING;
     }
 
-    /** Resolve display name for a player, falling back to last-6 of UUID */
     public String getDisplayName(String playerId) {
         String name = playerDisplayNames.get(playerId);
         if (name != null && !name.isBlank()) return name;
         return playerId.length() > 6 ? playerId.substring(playerId.length() - 6) : playerId;
+    }
+
+    public String getSpectatorName(String spectatorId) {
+        String name = spectatorDisplayNames.get(spectatorId);
+        if (name != null && !name.isBlank()) return name;
+        return spectatorId.length() > 6 ? spectatorId.substring(spectatorId.length() - 6) : spectatorId;
+    }
+
+    public int getSpectatorCount() {
+        return spectatorIds == null ? 0 : spectatorIds.size();
+    }
+
+    public boolean isSpectator(String id) {
+        return spectatorIds != null && spectatorIds.contains(id);
     }
 
     public enum GameStatus {

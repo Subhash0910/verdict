@@ -66,6 +66,38 @@ public class RoomController {
         return ResponseEntity.ok(toResponse(session));
     }
 
+    /**
+     * Join as spectator — works whether game is WAITING or IN_PROGRESS.
+     * Spectators are never added to playerIds and never assigned roles.
+     */
+    @PostMapping("/{roomCode}/spectate")
+    public ResponseEntity<RoomResponse> spectateRoom(
+            @PathVariable String roomCode,
+            @Valid @RequestBody JoinRoomRequest req) {
+
+        GameSession session = sessionRepo.findByRoomCode(roomCode)
+                .orElseThrow(() -> new RuntimeException("Room not found: " + roomCode));
+
+        // Already a spectator — idempotent
+        if (session.isSpectator(req.getPlayerId()))
+            return ResponseEntity.ok(toResponse(session));
+
+        // Can't spectate if you're already a player
+        if (session.getPlayerIds().contains(req.getPlayerId()))
+            return ResponseEntity.badRequest().body(null);
+
+        if (session.getSpectatorIds() == null) session.setSpectatorIds(new ArrayList<>());
+        if (session.getSpectatorDisplayNames() == null) session.setSpectatorDisplayNames(new HashMap<>());
+
+        session.getSpectatorIds().add(req.getPlayerId());
+        session.getSpectatorDisplayNames().put(req.getPlayerId(), req.getDisplayName());
+        session = sessionRepo.save(session);
+        log.info("Spectator '{}' ({}) joined room {}", req.getDisplayName(), req.getPlayerId(), roomCode);
+
+        broadcastSpectatorJoined(session, req.getDisplayName());
+        return ResponseEntity.ok(toResponse(session));
+    }
+
     @GetMapping("/{roomCode}")
     public ResponseEntity<RoomResponse> getRoom(@PathVariable String roomCode) {
         return sessionRepo.findByRoomCode(roomCode)
@@ -73,7 +105,7 @@ public class RoomController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // ── helpers ──────────────────────────────────────────────────────────────
+    // ── helpers ────────────────────────────────────────────────────────────────────
 
     private void broadcastLobbyUpdate(GameSession session, String type) {
         LobbyUpdateMessage msg = LobbyUpdateMessage.builder()
@@ -91,6 +123,14 @@ public class RoomController {
         messagingTemplate.convertAndSend("/topic/lobby/" + session.getRoomCode(), msg);
     }
 
+    private void broadcastSpectatorJoined(GameSession session, String spectatorName) {
+        messagingTemplate.convertAndSend("/topic/lobby/" + session.getRoomCode(), Map.of(
+            "type",          "SPECTATOR_JOINED",
+            "spectatorName", spectatorName,
+            "spectatorCount", session.getSpectatorCount()
+        ));
+    }
+
     private String generateUniqueRoomCode() {
         String chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
         Random rnd = new Random();
@@ -104,9 +144,13 @@ public class RoomController {
     }
 
     private RoomResponse toResponse(GameSession s) {
-        // Build a full playerId -> displayName map for the response
         Map<String, String> names = new HashMap<>();
         s.getPlayerIds().forEach(pid -> names.put(pid, s.getDisplayName(pid)));
+
+        Map<String, String> spectatorNames = new HashMap<>();
+        if (s.getSpectatorIds() != null) {
+            s.getSpectatorIds().forEach(sid -> spectatorNames.put(sid, s.getSpectatorName(sid)));
+        }
 
         return RoomResponse.builder()
                 .sessionId(s.getId())
@@ -115,6 +159,8 @@ public class RoomController {
                 .status(s.getStatus())
                 .playerIds(s.getPlayerIds())
                 .playerNames(names)
+                .spectatorIds(s.getSpectatorIds() != null ? s.getSpectatorIds() : List.of())
+                .spectatorNames(spectatorNames)
                 .maxPlayers(s.getMaxPlayers())
                 .currentPlayers(s.getPlayerIds().size())
                 .build();
