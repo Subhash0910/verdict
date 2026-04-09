@@ -60,10 +60,9 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
         }
         if (state.trustScores) setTrustScores(state.trustScores)
         if (isSpectator) {
-          // Spectators skip to whichever phase is live
           const p = state.phase
           if (p === 'DISCUSSION') { setPhase('DISCUSSION'); startTimer(90) }
-          else if (p === 'ABILITY') { setPhase('ABILITY'); startTimer(60) }
+          else if (p === 'ABILITY') { setPhase('SPECTATOR_ABILITY_WATCH'); startTimer(60) }
           else if (p === 'VOTING')  { setPhase('VOTING') }
           else if (p === 'GAME_OVER') { setPhase('GAME_OVER') }
           else setPhase('SPECTATOR_WAITING')
@@ -82,8 +81,22 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
       webSocketFactory: () => new SockJS('/ws'),
       reconnectDelay: 3000,
       onConnect: () => {
-        // Main game topic — spectators receive all events
+        // Main game topic
         client.subscribe(`/topic/game/${roomCode}`, msg => handleGameEvent(JSON.parse(msg.body)))
+
+        // Lobby topic — needed for GAME_RESET (spectators + players both need this)
+        client.subscribe(`/topic/lobby/${roomCode}`, msg => {
+          const d = JSON.parse(msg.body)
+          if (d.type === 'GAME_RESET') {
+            // Host pressed Play Again — navigate everyone back to lobby
+            clearInterval(timerRef.current)
+            const handler = onPlayAgain || onExit
+            handler?.()
+          }
+          if (d.type === 'SPECTATOR_JOINED') {
+            setSpectatorCount(d.spectatorCount || 1)
+          }
+        })
 
         // Role reveal (players only)
         if (!isSpectator) {
@@ -101,7 +114,7 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
           })
         }
 
-        // Chat — everyone including spectators sees messages
+        // Chat — everyone sees messages
         client.subscribe(`/topic/game/${roomCode}/chat`, msg => {
           const m = JSON.parse(msg.body)
           setMessages(prev => [...prev, m])
@@ -116,14 +129,6 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
               ...prev,
               [m.targetPlayer]: Math.max(0, Math.min(100, (prev[m.targetPlayer] ?? 50) + m.trustDelta))
             }))
-          }
-        })
-
-        // Spectator count updates from lobby topic
-        client.subscribe(`/topic/lobby/${roomCode}`, msg => {
-          const d = JSON.parse(msg.body)
-          if (d.type === 'SPECTATOR_JOINED') {
-            setSpectatorCount(d.spectatorCount || 1)
           }
         })
       }
@@ -223,7 +228,7 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
   }
 
   function sendChat(text) {
-    if (isSpectator) return  // spectators cannot chat
+    if (isSpectator) return
     if (isEliminated) {
       fetch(`/api/game/${roomCode}/spirit`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -253,6 +258,7 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ playerId })
       })
+      // GAME_RESET broadcast handles navigation for everyone else
     } catch (e) {
       console.warn('Reset failed', e)
     }
@@ -260,7 +266,6 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
     handler?.()
   }
 
-  // ── Spectator waiting (game not started yet) ──────────────────────────────
   if (phase === 'SPECTATOR_WAITING') return (
     <div className={styles.screen}>
       <SpectatorBanner spectatorCount={spectatorCount} />
@@ -268,27 +273,18 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
         <div style={{ color: '#333', letterSpacing: '4px', fontSize: '11px', textTransform: 'uppercase' }}>
           Waiting for game to start...
         </div>
-        <div style={{ color: '#1a1a2e', fontSize: '10px', letterSpacing: '2px' }}>
-          You are in spectator mode
-        </div>
+        <div style={{ color: '#1a1a2e', fontSize: '10px', letterSpacing: '2px' }}>You are in spectator mode</div>
       </div>
     </div>
   )
 
-  // ── Spectator ability phase watch (no controls) ──────────────────────────
   if (phase === 'SPECTATOR_ABILITY_WATCH') return (
     <div className={styles.screen}>
       <SpectatorBanner spectatorCount={spectatorCount} />
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', marginTop: '60px' }}>
-        <div style={{ color: '#2a2a3e', letterSpacing: '5px', fontSize: '10px', textTransform: 'uppercase' }}>
-          \u26A1 Ability Phase
-        </div>
-        <div style={{ color: '#1a1a2e', letterSpacing: '3px', fontSize: '9px' }}>
-          Players are using their abilities...
-        </div>
-        <div style={{ color: '#7b2d8b', fontSize: '28px', fontWeight: 900, letterSpacing: '3px' }}>
-          {timer > 0 ? timer : ''}
-        </div>
+        <div style={{ color: '#2a2a3e', letterSpacing: '5px', fontSize: '10px', textTransform: 'uppercase' }}>\u26A1 Ability Phase</div>
+        <div style={{ color: '#1a1a2e', letterSpacing: '3px', fontSize: '9px' }}>Players are using their abilities...</div>
+        <div style={{ color: '#7b2d8b', fontSize: '28px', fontWeight: 900, letterSpacing: '3px' }}>{timer > 0 ? timer : ''}</div>
       </div>
     </div>
   )
@@ -301,12 +297,9 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
 
   return (
     <div className={styles.screen}>
-      {/* Spectator banner — always visible when in spectator mode */}
       {isSpectator && <SpectatorBanner spectatorCount={spectatorCount} />}
-
       {worldEvent && <WorldEvent event={worldEvent} onDismiss={() => setWorldEvent(null)} />}
 
-      {/* Role reveal — players only */}
       {!isSpectator && (phase === 'ROLE_REVEAL' || phase === 'AWAITING_ROLE') && (
         myRole
           ? <RoleRevealCard
@@ -323,7 +316,6 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
             </div>
       )}
 
-      {/* Ability phase — players only */}
       {!isSpectator && phase === 'ABILITY' && (
         <AbilityPhase
           myRole={{ ...myRole, playerName }}
@@ -334,7 +326,6 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
         />
       )}
 
-      {/* Discussion — players get full controls; spectators get read-only chat */}
       {(phase === 'DISCUSSION' || phase === 'AWAITING_DISCUSSION') && (
         <DiscussionPhase
           theme={theme}
@@ -342,7 +333,7 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
           players={players}
           messages={messages}
           timer={timer}
-          isEliminated={isSpectator ? true : isEliminated}  // spectators treated as eliminated for chat
+          isEliminated={isSpectator ? true : isEliminated}
           readOnly={isSpectator}
           trustScores={trustScores}
           evidenceEvents={evidenceEvents}
@@ -354,7 +345,6 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
         />
       )}
 
-      {/* Voting — players only; spectators see a read-only tally */}
       {phase === 'VOTING' && !isSpectator && (
         <VotingPhase
           players={players.filter(p => p.isAlive !== false && p.playerName !== playerName)}
@@ -365,7 +355,6 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
         />
       )}
 
-      {/* Spectator voting view — live tally, no buttons */}
       {phase === 'VOTING' && isSpectator && (
         <div className={styles.screen} style={{ flexDirection: 'column', gap: '16px' }}>
           <SpectatorBanner spectatorCount={spectatorCount} />

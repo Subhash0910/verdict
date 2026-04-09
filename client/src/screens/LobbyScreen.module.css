@@ -1,170 +1,123 @@
 .container {
-  position: relative;
-  width: 100vw;
-  height: 100vh;
-  overflow: hidden;
+  width: 100vw; height: 100vh;
+  background: #080810;
+  position: relative; overflow: hidden;
 }
 
 .hud {
   position: absolute;
-  top: 0;
-  right: 0;
-  width: 300px;
+  top: 0; right: 0;
+  width: min(320px, 90vw);
   height: 100vh;
-  background: rgba(10, 10, 15, 0.85);
-  border-left: 1px solid #2a2a3e;
-  backdrop-filter: blur(16px);
-  padding: 24px 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
   overflow-y: auto;
+  padding: 24px 20px;
+  display: flex; flex-direction: column; gap: 16px;
+  background: rgba(8,8,16,0.92);
+  border-left: 1px solid #0e0e1c;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
+/* Room info block */
 .roomInfo {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  display: flex; flex-direction: column; gap: 6px;
 }
-
 .label {
-  font-size: 10px;
-  letter-spacing: 2px;
-  color: #888;
-  font-weight: 600;
+  font-size: 8px; letter-spacing: 6px; color: #1a1a2e;
+  text-transform: uppercase; font-weight: 800;
 }
-
 .code {
-  font-size: 32px;
-  font-weight: 900;
-  letter-spacing: 8px;
-  color: #00f5ff;
-  font-family: monospace;
+  font-size: 28px; font-weight: 900;
+  letter-spacing: 8px; color: #ccc;
 }
-
 .shareRow {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+  display: flex; gap: 6px; flex-wrap: wrap;
+  margin-top: 4px;
 }
-
 .copyBtn {
-  background: none;
-  border: 1px solid #2a2a3e;
-  border-radius: 6px;
-  color: #888;
-  cursor: pointer;
-  font-size: 12px;
-  padding: 4px 10px;
-  width: fit-content;
-  transition: all 0.2s;
-}
-
-.copyBtn:hover { border-color: #00f5ff; color: #00f5ff; }
-
-.shareLink {
-  border-color: #7b2d8b;
-  color: #9b5de5;
-}
-.shareLink:hover { border-color: #9b5de5; color: #c77dff; }
-
-.status {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: #888;
-}
-
-.dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-}
-
-.connected { background: #00ff88; box-shadow: 0 0 6px #00ff88; }
-.disconnected { background: #e63946; }
-
-.players { display: flex; flex-direction: column; gap: 8px; flex: 1; }
-
-.playersHeader {
-  font-size: 11px;
-  letter-spacing: 1px;
-  color: #888;
-  font-weight: 600;
-  text-transform: uppercase;
-  margin-bottom: 4px;
-}
-
-.playerRow {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
-  background: rgba(255,255,255,0.04);
+  flex: 1;
+  padding: 7px 4px;
+  background: #0e0e1c;
+  border: 1px solid #12121e;
   border-radius: 8px;
-  border: 1px solid #2a2a3e;
+  color: #2a2a3e;
+  font-size: 9px; letter-spacing: 1px;
+  cursor: pointer; white-space: nowrap;
+  transition: border-color 0.2s, color 0.2s;
 }
+.copyBtn:hover  { border-color: #1a1a2e; color: #555; }
+.shareLink { flex: 1.4; }
+.qrActive  { border-color: #7b2d8b !important; color: #c77dff !important; }
 
+/* Status bar */
+.status {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 9px; letter-spacing: 3px; color: #1a1a2e;
+  text-transform: uppercase;
+}
+.dot {
+  width: 6px; height: 6px; border-radius: 50%;
+}
+.connected    { background: #2d8b45; box-shadow: 0 0 6px #2d8b45; }
+.disconnected { background: #555; }
+.muteBtn {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid #12121e;
+  border-radius: 6px;
+  color: #2a2a3e;
+  font-size: 9px; letter-spacing: 1px;
+  padding: 4px 8px; cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+.muteBtn:hover  { border-color: #1a1a2e; color: #555; }
+.mutedActive    { border-color: #e63946 !important; color: #e63946 !important; }
+
+/* Player list */
+.players {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.playersHeader {
+  font-size: 8px; letter-spacing: 4px; color: #1a1a2e;
+  text-transform: uppercase; font-weight: 800;
+  display: flex; align-items: center;
+}
+.spectatorBadge {
+  color: #2a2a3e;
+  font-weight: 400;
+  letter-spacing: 2px;
+}
+.playerRow {
+  display: flex; align-items: center; gap: 10px;
+}
+.spectatorRow {
+  /* Dimmed — opacity applied inline per element */
+}
+.spectatorDivider {
+  font-size: 8px; letter-spacing: 4px; color: #111;
+  text-transform: uppercase; text-align: center;
+  margin: 2px 0;
+}
 .avatar {
-  width: 32px;
-  height: 32px;
+  width: 28px; height: 28px;
+  background: #0e0e1c;
   border-radius: 50%;
-  background: linear-gradient(135deg, #e63946, #7b2d8b);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 800; color: #7b2d8b;
+  border: 1px solid #12121e;
   flex-shrink: 0;
 }
+.playerName {
+  font-size: 12px; color: #555; letter-spacing: 1px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.hostBadge { color: #c77dff; }
+.youBadge  { color: #2a2a3e; font-size: 10px; }
 
-.playerName { font-size: 14px; font-weight: 500; }
-.hostBadge { font-size: 12px; }
-.youBadge { font-size: 11px; color: #888; }
-
+/* Waiting hint */
 .waitingHint {
-  font-size: 11px;
-  color: #555;
-  text-align: center;
-  padding: 8px;
-  border: 1px dashed #2a2a3e;
-  border-radius: 8px;
-  line-height: 1.8;
+  font-size: 10px; color: #1a1a2e;
+  letter-spacing: 2px; text-align: center;
+  margin-top: 4px; line-height: 1.8;
 }
-
-.waitingSub {
-  font-size: 10px;
-  color: #7b2d8b;
-}
-
-/* Mobile: full-width HUD at the bottom */
-@media (max-width: 768px) {
-  .hud {
-    position: absolute;
-    bottom: 0;
-    top: auto;
-    right: 0;
-    left: 0;
-    width: 100%;
-    height: auto;
-    max-height: 55vh;
-    border-left: none;
-    border-top: 1px solid #2a2a3e;
-    border-radius: 16px 16px 0 0;
-    padding: 16px;
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .code {
-    font-size: 24px;
-    letter-spacing: 6px;
-  }
-
-  .players {
-    flex: unset;
-    max-height: 120px;
-    overflow-y: auto;
-  }
-}
+.waitingSub { color: #111; font-size: 9px; letter-spacing: 1px; }
