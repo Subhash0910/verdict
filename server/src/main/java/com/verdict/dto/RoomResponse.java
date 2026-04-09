@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.util.List;
+import java.util.Map;
 
 @Data
 @Builder
@@ -14,6 +15,7 @@ public class RoomResponse {
     private String hostPlayerId;
     private GameSession.GameStatus status;
     private List<String> playerIds;
+    private Map<String, String> playerNames; // playerId -> displayName
     private int maxPlayers;
     private int currentPlayers;
 }

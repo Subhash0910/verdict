@@ -39,7 +39,6 @@ public class RoomController {
 
         session = sessionRepo.save(session);
         log.info("Room created: {} by '{}' ({})", roomCode, req.getHostDisplayName(), req.getHostPlayerId());
-
         return ResponseEntity.ok(toResponse(session));
     }
 
@@ -84,12 +83,11 @@ public class RoomController {
                 .players(session.getPlayerIds().stream()
                         .map(pid -> LobbyUpdateMessage.PlayerInfo.builder()
                                 .playerId(pid)
-                                .playerName(session.getDisplayName(pid)) // real display name
+                                .playerName(session.getDisplayName(pid))
                                 .isHost(pid.equals(session.getHostPlayerId()))
                                 .build())
                         .toList())
                 .build();
-
         messagingTemplate.convertAndSend("/topic/lobby/" + session.getRoomCode(), msg);
     }
 
@@ -106,12 +104,17 @@ public class RoomController {
     }
 
     private RoomResponse toResponse(GameSession s) {
+        // Build a full playerId -> displayName map for the response
+        Map<String, String> names = new HashMap<>();
+        s.getPlayerIds().forEach(pid -> names.put(pid, s.getDisplayName(pid)));
+
         return RoomResponse.builder()
                 .sessionId(s.getId())
                 .roomCode(s.getRoomCode())
                 .hostPlayerId(s.getHostPlayerId())
                 .status(s.getStatus())
                 .playerIds(s.getPlayerIds())
+                .playerNames(names)
                 .maxPlayers(s.getMaxPlayers())
                 .currentPlayers(s.getPlayerIds().size())
                 .build();

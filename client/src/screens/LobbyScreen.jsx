@@ -13,18 +13,18 @@ export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart
   const [startError, setStartError] = useState('')
   const [capturedEvent, setCapturedEvent] = useState(null)
 
-  // Build player list: use real display names when available from socket
-  // Fall back to playerData.playerName for self, truncated UUID for others
+  /**
+   * Player list resolution priority:
+   * 1. WebSocket broadcast (real-time, has real names from server)
+   * 2. roomData.playerNames map (from REST response on join/create, has real names)
+   * 3. Nothing — never fall back to raw UUIDs
+   */
   const displayPlayers = players.length > 0
-    ? players.map(p => ({
-        ...p,
-        playerName: p.playerName && !isUUID(p.playerName) ? p.playerName
-          : p.playerId === playerData?.playerId ? playerData.playerName
-          : shortenId(p.playerId)
-      }))
+    ? players  // WebSocket already sends real display names from server
     : (roomData?.playerIds || []).map(id => ({
         playerId: id,
-        playerName: id === playerData?.playerId ? playerData.playerName : shortenId(id),
+        // Use playerNames map from RoomResponse — server-side resolved names
+        playerName: roomData?.playerNames?.[id] || playerData?.playerName || id.slice(-6),
         isHost: id === roomData?.hostPlayerId,
       }))
 
@@ -39,11 +39,8 @@ export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart
   const handleStartGame = async () => {
     setStartError('')
     try {
-      // CRITICAL: send real display names so AI uses them everywhere
-      const playerNames = displayPlayers.map(p => p.playerName)
       await axios.post(`/api/game/${roomData.roomCode}/start`, {
         playerId: playerData.playerId,
-        playerNames,
       })
     } catch (e) {
       const msg = e.response?.data?.error || e.message
@@ -95,13 +92,4 @@ export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart
       </div>
     </div>
   )
-}
-
-function isUUID(str) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str)
-}
-
-function shortenId(id) {
-  // Last 6 chars of UUID as fallback name
-  return id?.slice(-6) || 'Player'
 }
