@@ -1,41 +1,91 @@
-@keyframes fadeIn  { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
-@keyframes blink   { 0%,100%{opacity:1} 50%{opacity:0} }
-@keyframes winGlow { 0%,100%{text-shadow:0 0 20px #f7b731} 50%{text-shadow:0 0 40px #f7b731} }
+@keyframes fadeIn    { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+@keyframes blink     { 0%,100%{opacity:1} 50%{opacity:0} }
+@keyframes winGlow   { 0%,100%{text-shadow:0 0 20px #f7b731,0 0 40px #f7b73144} 50%{text-shadow:0 0 50px #f7b731,0 0 80px #f7b73166} }
+@keyframes loseShake { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-4px)} 40%,80%{transform:translateX(4px)} }
+@keyframes shareSlide { from{opacity:0;transform:translateY(24px) scale(0.97)} to{opacity:1;transform:translateY(0) scale(1)} }
+@keyframes pillIn    { from{opacity:0;transform:scale(0.7)} to{opacity:1;transform:scale(1)} }
 
 .container {
   display:flex; flex-direction:column;
   width:100vw; min-height:100vh;
   background:#080810; color:#fff;
   font-family:'Segoe UI',system-ui,sans-serif;
-  align-items:center; justify-content:center;
-  gap:32px; padding:32px;
+  align-items:center; justify-content:flex-start;
+  gap:28px; padding:40px 24px 60px;
   overflow-y:auto;
+  box-sizing:border-box;
 }
 
-.result { animation:fadeIn 0.5s ease; }
-.win  { font-size:22px; font-weight:900; letter-spacing:4px; color:#f7b731; animation:winGlow 2s ease infinite; }
-.lose { font-size:22px; font-weight:900; letter-spacing:4px; color:#e63946; }
+/* Result banner */
+.resultBanner {
+  text-align:center;
+  display:flex; flex-direction:column; align-items:center; gap:10px;
+  animation:fadeIn 0.5s ease;
+}
 
+.win  {
+  font-size:26px; font-weight:900; letter-spacing:4px;
+  color:#f7b731; text-transform:uppercase;
+  animation:winGlow 2s ease infinite;
+}
+.lose {
+  font-size:26px; font-weight:900; letter-spacing:4px;
+  color:#e63946; text-transform:uppercase;
+  animation:loseShake 0.5s ease 0.3s both;
+}
+
+.roleLine {
+  font-size:13px; color:#777; letter-spacing:0.5px;
+  display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:center;
+}
+
+.alignPill {
+  font-size:10px; font-weight:700; letter-spacing:2px;
+  padding:3px 10px; border-radius:20px;
+  text-transform:uppercase;
+  animation:pillIn 0.4s cubic-bezier(0.34,1.56,0.64,1) 0.3s both;
+}
+.pillGood { background:rgba(0,180,216,0.12); color:#00b4d8; border:1px solid #00b4d8; }
+.pillEvil { background:rgba(230,57,70,0.12);  color:#e63946; border:1px solid #e63946; }
+
+/* Case file box */
 .caseFileBox {
-  max-width:520px; width:100%;
+  max-width:540px; width:100%;
   background:#0c0c18; border:1px solid #2a2a3a;
-  border-radius:14px; padding:24px 28px;
+  border-radius:14px; padding:28px 32px;
   animation:fadeIn 0.4s ease;
+  box-sizing:border-box;
 }
 .caseLabel {
   font-size:8px; letter-spacing:6px; color:#444;
-  text-transform:uppercase; margin-bottom:14px;
+  text-transform:uppercase; margin-bottom:16px; text-align:center;
 }
 .caseText {
   font-size:15px; color:#ccc; line-height:1.9;
   font-style:italic; min-height:80px;
 }
-.cursor { animation:blink 0.8s step-end infinite; color:#7b2d8b; }
+.cursor { color:#7b2d8b; animation:blink 0.8s step-end infinite; }
+.cursorHide { opacity:0; }
 
+/* Share card slide in */
+.shareSlideIn {
+  animation: shareSlide 0.6s cubic-bezier(0.34,1.56,0.64,1);
+  width:100%; display:flex; justify-content:center;
+}
+
+/* Play again */
 .playAgainBtn {
-  background:transparent; border:1px solid #333;
-  border-radius:8px; padding:12px 32px;
-  color:#777; font-size:14px; cursor:pointer;
+  background:transparent; border:1px solid #2a2a3e;
+  border-radius:10px; padding:12px 36px;
+  color:#666; font-size:14px; cursor:pointer;
   letter-spacing:2px; transition:all 0.2s;
+  text-transform:uppercase;
 }
 .playAgainBtn:hover { border-color:#fff; color:#fff; }
+
+/* Mobile */
+@media (max-width:480px) {
+  .container { padding:28px 16px 48px; gap:20px; }
+  .caseFileBox { padding:20px 18px; }
+  .win, .lose { font-size:20px; letter-spacing:2px; }
+}
