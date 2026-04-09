@@ -1,18 +1,19 @@
 import React, { useState, useEffect } from 'react'
 import styles from './GameOverScreen.module.css'
 import ShareCard from './ShareCard'
+import StatsScreen from './StatsScreen'
 import { useSound } from '../hooks/useSound'
 
-export default function GameOverScreen({ result, myRole, caseFile, theme, roomCode, onPlayAgain }) {
-  const [displayed, setDisplayed]   = useState('')
+export default function GameOverScreen({ result, myRole, caseFile, theme, roomCode, stats, myPlayerName, onPlayAgain }) {
+  const [displayed, setDisplayed]       = useState('')
   const [caseFileDone, setCaseFileDone] = useState(false)
-  const [showShare, setShowShare]   = useState(false)
+  const [showShare, setShowShare]       = useState(false)
+  const [activeTab, setActiveTab]       = useState('case') // 'case' | 'stats'
   const sound = useSound()
 
-  const isWinner = result?.winner === (myRole?.alignment || 'good')
+  const isWinner    = result?.winner === (myRole?.alignment || 'good')
   const accentColor = myRole?.alignment === 'evil' ? '#e63946' : '#00b4d8'
 
-  // Typewriter for case file
   useEffect(() => {
     if (!caseFile) return
     let i = 0
@@ -48,26 +49,56 @@ export default function GameOverScreen({ result, myRole, caseFile, theme, roomCo
         </div>
       </div>
 
-      {/* Case file box */}
-      <div className={styles.caseFileBox}>
-        <div className={styles.caseLabel}>\u2014 CASE FILE \u2014</div>
-        <div className={styles.caseText}>
-          {displayed}<span className={`${styles.cursor} ${caseFileDone ? styles.cursorHide : ''}`}>|</span>
-        </div>
+      {/* Tab switcher — only show Stats tab if data exists */}
+      <div className={styles.tabs}>
+        <button
+          className={`${styles.tab} ${activeTab === 'case' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('case')}
+        >
+          \uD83D\uDDC2 Case File
+        </button>
+        {stats && stats.length > 0 && (
+          <button
+            className={`${styles.tab} ${activeTab === 'stats' ? styles.tabActive : ''}`}
+            onClick={() => setActiveTab('stats')}
+          >
+            \uD83D\uDCCA Stats
+          </button>
+        )}
       </div>
 
-      {/* Share card — slides in after case file finishes */}
-      {showShare && caseFile && (
-        <div className={styles.shareSlideIn}>
-          <ShareCard
-            theme={theme || 'VERDICT'}
-            caseFile={caseFile}
-            myRoleName={myRole?.roleName || '???'}
-            myAlignment={myRole?.alignment || 'good'}
-            winner={result?.winner}
-            roomCode={roomCode}
-          />
-        </div>
+      {/* Case File tab */}
+      {activeTab === 'case' && (
+        <>
+          <div className={styles.caseFileBox}>
+            <div className={styles.caseLabel}>&mdash; CASE FILE &mdash;</div>
+            <div className={styles.caseText}>
+              {displayed}<span className={`${styles.cursor} ${caseFileDone ? styles.cursorHide : ''}`}>|</span>
+            </div>
+          </div>
+
+          {showShare && caseFile && (
+            <div className={styles.shareSlideIn}>
+              <ShareCard
+                theme={theme || 'VERDICT'}
+                caseFile={caseFile}
+                myRoleName={myRole?.roleName || '???'}
+                myAlignment={myRole?.alignment || 'good'}
+                winner={result?.winner}
+                roomCode={roomCode}
+              />
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Stats tab */}
+      {activeTab === 'stats' && (
+        <StatsScreen
+          stats={stats || []}
+          winner={result?.winner}
+          myPlayerName={myPlayerName}
+        />
       )}
 
       <button className={styles.playAgainBtn} onClick={onPlayAgain}>

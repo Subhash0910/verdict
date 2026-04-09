@@ -48,8 +48,6 @@ public class GameController {
         session.setStatus(GameSession.GameStatus.IN_PROGRESS);
         sessionRepo.save(session);
 
-        // Always use display names from the session — ignore any clientside playerNames
-        // This is the ONLY correct source of truth
         List<String> displayNames = session.getPlayerIds().stream()
                 .map(session::getDisplayName)
                 .toList();
@@ -66,16 +64,17 @@ public class GameController {
         new Thread(() -> {
             try {
                 Thread.sleep(1500);
-                // Send each role to /role/{displayName} — client subscribes by displayName
+                // Include flavorText in ROLE_REVEAL (fix)
                 setup.getRoles().forEach(role ->
                     messagingTemplate.convertAndSend(
                         "/topic/game/" + roomCode + "/role/" + role.getPlayerName(),
-                        Map.of("type",        "ROLE_REVEAL",
-                               "roleName",     role.getRoleName(),
-                               "alignment",    role.getAlignment(),
-                               "winCondition", role.getWinCondition(),
-                               "ability",      role.getAbility(),
-                               "restriction",  role.getRestriction())
+                        Map.of("type",         "ROLE_REVEAL",
+                               "roleName",      role.getRoleName(),
+                               "alignment",     role.getAlignment(),
+                               "flavorText",    role.getFlavorText() != null ? role.getFlavorText() : "",
+                               "winCondition",  role.getWinCondition(),
+                               "ability",       role.getAbility(),
+                               "restriction",   role.getRestriction())
                     )
                 );
 
@@ -93,7 +92,6 @@ public class GameController {
                     "abilityLog", gameStateService.getAbilityLog(roomCode)
                 ));
 
-                // Observer note at 45s into discussion
                 Thread.sleep(45_000);
                 if (state != null && "DISCUSSION".equals(state.phase)) {
                     List<String> log = gameStateService.getAbilityLog(roomCode);
@@ -104,7 +102,6 @@ public class GameController {
                     }
                 }
 
-                // World event between 45-90s into discussion
                 Thread.sleep(new Random().nextInt(45_000));
                 if (state != null && "DISCUSSION".equals(state.phase)) {
                     var event = gameMasterService.generateWorldEvent(
@@ -117,7 +114,6 @@ public class GameController {
                     ));
                 }
 
-                // Voting after ~90s discussion
                 Thread.sleep(Math.max(0, 45_000 - new Random().nextInt(20_000)));
                 if (state != null && "DISCUSSION".equals(state.phase)) {
                     state.phase = "VOTING";
@@ -184,6 +180,9 @@ public class GameController {
         var state = gameStateService.getState(roomCode);
         if (state == null) return ResponseEntity.badRequest().body(Map.of("error", "Room not found"));
 
+        // Track accusation stats
+        gameStateService.trackAccusation(roomCode, accuserName, targetName);
+
         messagingTemplate.convertAndSend("/topic/game/" + roomCode + "/chat", Map.of(
             "playerName", "\uD83D\uDD34 Accusation",
             "text", accuserName + " formally accuses " + targetName + " \u2014 a vote has been called!",
@@ -239,13 +238,34 @@ public class GameController {
                                 state.theme, state.allPlayers,
                                 elim.traitorName(), elim.role(),
                                 elim.winner(), elim.eliminationOrder());
+                        // Bundle stats into CASE_FILE event
+                        List<Map<String, Object>> stats = gameStateService.buildStats(roomCode);
                         messagingTemplate.convertAndSend("/topic/game/" + roomCode, Map.of(
-                            "type", "CASE_FILE", "text", cf, "winner", elim.winner()));
+                            "type",   "CASE_FILE",
+                            "text",   cf,
+                            "winner", elim.winner(),
+                            "stats",  stats
+                        ));
                     } catch (InterruptedException ignored) {}
                 }).start();
             }
         }
         return ResponseEntity.ok(Map.of("status", "vote_cast"));
+    }
+
+    @PostMapping("/{roomCode}/chat")
+    public ResponseEntity<Map<String, String>> chatMessage(
+            @PathVariable String roomCode,
+            @RequestBody Map<String, String> body) {
+        String playerName = body.get("playerName");
+        String text       = body.get("text");
+        if (playerName == null || text == null || text.isBlank())
+            return ResponseEntity.badRequest().body(Map.of("error", "Invalid message"));
+        // Track message stat
+        gameStateService.trackMessage(roomCode, playerName);
+        messagingTemplate.convertAndSend("/topic/game/" + roomCode + "/chat", Map.of(
+            "playerName", playerName, "text", text));
+        return ResponseEntity.ok(Map.of("status", "sent"));
     }
 
     @PostMapping("/{roomCode}/spirit")

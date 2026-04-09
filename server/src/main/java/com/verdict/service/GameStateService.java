@@ -22,12 +22,61 @@ public class GameStateService {
             state.roles.put(r.getPlayerName(), r);
             state.alivePlayers.add(r.getPlayerName());
             state.allPlayers.add(r.getPlayerName());
-            state.trustScores.put(r.getPlayerName(), 50); // Everyone starts at 50
+            state.trustScores.put(r.getPlayerName(), 50);
+            state.accusationCounts.put(r.getPlayerName(), 0);
+            state.accusationsMade.put(r.getPlayerName(), 0);
+            state.messageCounts.put(r.getPlayerName(), 0);
+            state.votesReceived.put(r.getPlayerName(), 0);
         });
         states.put(roomCode, state);
         log.info("Stored game state for room {}: {} players, theme: '{}'",
                 roomCode, state.alivePlayers.size(), state.theme);
     }
+
+    // ── Stat tracking ───────────────────────────────────────────────────────────────────
+
+    /** Called when a player is formally accused by another player */
+    public void trackAccusation(String roomCode, String accuserName, String targetName) {
+        var state = getOrThrow(roomCode);
+        state.accusationCounts.merge(targetName,  1, Integer::sum);
+        state.accusationsMade.merge(accuserName,  1, Integer::sum);
+    }
+
+    /** Called for every chat message sent during discussion */
+    public void trackMessage(String roomCode, String playerName) {
+        var state = states.get(roomCode);
+        if (state == null) return;
+        state.messageCounts.merge(playerName, 1, Integer::sum);
+    }
+
+    /** Build full stats payload for CASE_FILE broadcast */
+    public List<Map<String, Object>> buildStats(String roomCode) {
+        var state = getOrThrow(roomCode);
+        List<Map<String, Object>> list = new ArrayList<>();
+        for (String player : state.allPlayers) {
+            var role = state.roles.get(player);
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("playerName",        player);
+            entry.put("roleName",          role != null ? role.getRoleName()  : "?");
+            entry.put("alignment",         role != null ? role.getAlignment() : "?");
+            entry.put("accusationsReceived",state.accusationCounts.getOrDefault(player, 0));
+            entry.put("accusationsMade",    state.accusationsMade.getOrDefault(player, 0));
+            entry.put("votesReceived",      state.votesReceived.getOrDefault(player, 0));
+            entry.put("messagesSent",       state.messageCounts.getOrDefault(player, 0));
+            entry.put("abilityUsed",        state.abilityUsed.contains(player));
+            entry.put("finalTrust",         state.trustScores.getOrDefault(player, 50));
+            entry.put("survived",           state.alivePlayers.contains(player));
+            list.add(entry);
+        }
+        // Sort by most suspicious (accusations received desc)
+        list.sort((a, b) -> Integer.compare(
+            (int) b.getOrDefault("accusationsReceived", 0),
+            (int) a.getOrDefault("accusationsReceived", 0)
+        ));
+        return list;
+    }
+
+    // ── Existing methods ──────────────────────────────────────────────────────────────────
 
     public String useAbility(String roomCode, String playerName, String targetName) {
         var state = getOrThrow(roomCode);
@@ -36,7 +85,6 @@ public class GameStateService {
         var role = state.roles.get(playerName);
         String abilityName = role != null ? role.getAbility() : "their ability";
         state.abilityLog.add(playerName + " used [" + abilityName + "] on " + targetName);
-        // Using ability on someone drops their trust (sus)
         int current = state.trustScores.getOrDefault(targetName, 50);
         state.trustScores.put(targetName, Math.max(0, current - 8));
         return playerName + " used their ability on " + targetName;
@@ -69,9 +117,10 @@ public class GameStateService {
     public VoteResult castVote(String roomCode, String voterId, String targetId) {
         var state = getOrThrow(roomCode);
         state.votes.put(voterId, targetId);
+        // Track votes received
+        state.votesReceived.merge(targetId, 1, Integer::sum);
         Map<String, Long> counts = new HashMap<>();
         state.votes.values().forEach(t -> counts.merge(t, 1L, Long::sum));
-        // Being voted for drops trust
         int curr = state.trustScores.getOrDefault(targetId, 50);
         state.trustScores.put(targetId, Math.max(0, curr - 5));
         boolean allVoted = state.votes.size() >= state.alivePlayers.size();
@@ -134,7 +183,7 @@ public class GameStateService {
         return s;
     }
 
-    // ─ Types ───────────────────────────────────────────────────────────────
+    // ─ Types ──────────────────────────────────────────────────────────────────────
 
     public static class GameState {
         public String theme;
@@ -142,17 +191,22 @@ public class GameStateService {
         public String phase;
         public GameMasterService.GameSetup.WinConditions winConditions;
         public Map<String, GameMasterService.GameSetup.PlayerRole> roles   = new LinkedHashMap<>();
-        public Set<String>  alivePlayers     = new LinkedHashSet<>();
-        public Set<String>  eliminatedPlayers= new LinkedHashSet<>();
-        public List<String> allPlayers       = new ArrayList<>();
-        public List<String> eliminationOrder = new ArrayList<>();
-        public Map<String, String>  votes    = new LinkedHashMap<>();
-        public List<String> spiritMessages   = new ArrayList<>();
-        public Set<String>  abilityUsed      = new LinkedHashSet<>();
-        public Set<String>  abilitySkipped   = new LinkedHashSet<>();
-        public List<String> abilityLog       = new ArrayList<>();
-        public Set<String>  confessionUsed   = new LinkedHashSet<>();
-        public Map<String, Integer> trustScores = new LinkedHashMap<>();
+        public Set<String>  alivePlayers      = new LinkedHashSet<>();
+        public Set<String>  eliminatedPlayers  = new LinkedHashSet<>();
+        public List<String> allPlayers         = new ArrayList<>();
+        public List<String> eliminationOrder   = new ArrayList<>();
+        public Map<String, String>  votes      = new LinkedHashMap<>();
+        public List<String> spiritMessages     = new ArrayList<>();
+        public Set<String>  abilityUsed        = new LinkedHashSet<>();
+        public Set<String>  abilitySkipped     = new LinkedHashSet<>();
+        public List<String> abilityLog         = new ArrayList<>();
+        public Set<String>  confessionUsed     = new LinkedHashSet<>();
+        public Map<String, Integer> trustScores       = new LinkedHashMap<>();
+        // ─ Stat tracking fields (new) ─────────────────────────────────────────────
+        public Map<String, Integer> accusationCounts  = new LinkedHashMap<>();  // received
+        public Map<String, Integer> accusationsMade   = new LinkedHashMap<>();  // fired
+        public Map<String, Integer> messageCounts     = new LinkedHashMap<>();
+        public Map<String, Integer> votesReceived     = new LinkedHashMap<>();
     }
 
     public record VoteResult(Map<String, Long> voteCounts, boolean allVoted) {}
