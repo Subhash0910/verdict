@@ -1,0 +1,100 @@
+@keyframes fadeIn  { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
+@keyframes qrReveal { from{opacity:0;filter:blur(6px)} to{opacity:1;filter:blur(0)} }
+@keyframes dotBlink { 0%,100%{opacity:0.2} 50%{opacity:1} }
+
+.wrapper {
+  animation: fadeIn 0.35s cubic-bezier(0.34,1.56,0.64,1);
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 20px;
+  background: #08080f;
+  border: 1px solid #1e1e30;
+  border-radius: 16px;
+  box-shadow:
+    0 0 0 1px #12121e,
+    0 8px 32px rgba(0,0,0,0.5),
+    0 0 40px rgba(123,45,139,0.06);
+}
+
+.scanHint {
+  font-size: 8px;
+  letter-spacing: 5px;
+  color: #444;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+/* The div QRCode library renders canvas/img into */
+.qrBox {
+  border-radius: 10px;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  background: #0a0a14;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.qrBox > canvas,
+.qrBox > img {
+  display: block;
+  border-radius: 10px;
+}
+
+.qrReady {
+  opacity: 1;
+  animation: qrReveal 0.4s ease;
+}
+
+.qrPlaceholder {
+  background: #0a0a14;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+}
+
+.generating {
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: #2a2a3e;
+  text-transform: uppercase;
+  animation: dotBlink 1s ease infinite;
+}
+
+.errorText {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: #3a1a1a;
+  text-transform: uppercase;
+}
+
+.codeText {
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: 6px;
+  color: #fff;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+
+.urlText {
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: #2a2a3e;
+  text-transform: lowercase;
+  max-width: 200px;
+  text-align: center;
+  word-break: break-all;
+  line-height: 1.4;
+}

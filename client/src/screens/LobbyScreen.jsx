@@ -3,6 +3,7 @@ import axios from 'axios'
 import useLobbySocket from '../hooks/useLobbySocket'
 import LobbyGame from '../phaser/LobbyGame'
 import GameStartingOverlay from '../components/GameStartingOverlay'
+import RoomQR from '../components/RoomQR'
 import styles from './LobbyScreen.module.css'
 
 // Set to 4 for production; 1 only for local dev testing
@@ -14,6 +15,7 @@ export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart
   const [startError, setStartError] = useState('')
   const [capturedEvent, setCapturedEvent] = useState(null)
   const [copied, setCopied] = useState(false)
+  const [showQR, setShowQR] = useState(false)
 
   const displayPlayers = players.length > 0
     ? players
@@ -71,7 +73,19 @@ export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart
             <button className={`${styles.copyBtn} ${styles.shareLink}`} onClick={handleCopyLink}>
               {copied ? '✅ Link Copied!' : '🔗 Share Link'}
             </button>
+            <button
+              className={`${styles.copyBtn} ${showQR ? styles.qrActive : ''}`}
+              onClick={() => setShowQR(v => !v)}
+              title="Show QR code to scan and join"
+            >
+              {showQR ? '❌ Hide QR' : '📷 QR Code'}
+            </button>
           </div>
+
+          {/* QR Panel — slides in below share row */}
+          {showQR && (
+            <RoomQR roomCode={roomData?.roomCode} size={180} />
+          )}
         </div>
         <div className={styles.status}>
           <span className={`${styles.dot} ${connected ? styles.connected : styles.disconnected}`} />
@@ -92,7 +106,7 @@ export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart
           {!canStart && waiting > 0 && (
             <div className={styles.waitingHint}>
               Waiting for {waiting} more player{waiting > 1 ? 's' : ''}...<br />
-              <span className={styles.waitingSub}>Share the link above 👆</span>
+              <span className={styles.waitingSub}>Share the link or QR above ⬆️</span>
             </div>
           )}
         </div>
