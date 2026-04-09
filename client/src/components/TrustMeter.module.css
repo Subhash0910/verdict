@@ -1,32 +1,43 @@
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+@keyframes dangerPulse {
+  0%,100% { opacity:1 } 50% { opacity:0.4 }
+}
+@keyframes barGrow {
+  from { width:0 } 
+}
 
 .container {
   display:flex; flex-direction:column; gap:6px;
   padding:12px 10px;
-  background:#0a0a14; border-bottom:1px solid #1a1a2e;
+  background:#0a0a14;
+  border-top:1px solid #1a1a2e;
 }
 .label {
-  font-size:8px; letter-spacing:4px; color:#2a2a3a;
-  text-transform:uppercase; margin-bottom:2px;
+  font-size:8px; letter-spacing:4px; color:#333;
+  text-transform:uppercase; margin-bottom:4px;
 }
 .row {
   display:flex; align-items:center; gap:8px;
 }
 .name {
-  font-size:11px; color:#555; width:70px;
+  font-size:10px; color:#555; width:70px;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-  flex-shrink:0;
 }
-.barTrack {
-  flex:1; height:4px; background:#111120;
-  border-radius:2px; overflow:hidden;
+.me { color:#7b2d8b; }
+.barWrap {
+  flex:1; height:4px; background:#1a1a2e; border-radius:2px; overflow:hidden;
 }
-.barFill {
-  height:100%; background:#7b2d8b;
-  border-radius:2px;
+.bar {
+  height:100%; border-radius:2px;
+  background:#3a3a5e;
   transition:width 0.6s cubic-bezier(0.34,1.56,0.64,1);
 }
-.barFill.danger { background:#e63946; animation:pulse 1s ease infinite; }
-.barFill.high   { background:#00b4d8; }
-.score { font-size:10px; color:#333; width:22px; text-align:right; flex-shrink:0; }
+.bar.safe { background:#00b4d8; }
+.bar.danger {
+  background:#e63946;
+  animation:dangerPulse 0.8s ease infinite;
+}
+.score {
+  font-size:10px; color:#444; width:22px; text-align:right;
+  font-variant-numeric:tabular-nums;
+}
 .dangerText { color:#e63946; font-weight:700; }

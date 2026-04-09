@@ -1,18 +1,19 @@
 import React, { useEffect, useRef, useState } from 'react'
 import styles from './TrustMeter.module.css'
-import { SFX } from '../hooks/useSound'
+import { useSound } from '../hooks/useSound'
 
 export default function TrustMeter({ players, trustScores, myPlayerName }) {
+  const sound = useSound()
   const prevScores = useRef({})
 
   useEffect(() => {
     players.forEach(p => {
       const prev = prevScores.current[p.playerName] ?? 50
       const curr = trustScores[p.playerName] ?? 50
-      if (curr < prev - 2) SFX.trustDrop()
-      else if (curr > prev + 2) SFX.trustRise()
+      if (curr < prev - 2) sound.play('trust_drop')
+      else if (curr > prev + 2) sound.play('trust_rise')
+      prevScores.current[p.playerName] = curr
     })
-    prevScores.current = { ...trustScores }
   }, [trustScores])
 
   return (
@@ -21,20 +22,22 @@ export default function TrustMeter({ players, trustScores, myPlayerName }) {
       {players.filter(p => p.isAlive !== false).map(p => {
         const score = trustScores[p.playerName] ?? 50
         const isMe = p.playerName === myPlayerName
-        const danger = score < 25
-        const high = score > 70
+        const danger = score < 30
+        const safe = score > 70
         return (
           <div key={p.playerName} className={styles.row}>
-            <div className={styles.name} title={p.playerName}>
-              {isMe ? <b>{p.playerName}</b> : p.playerName}
+            <div className={`${styles.name} ${isMe ? styles.me : ''}`}>
+              {p.playerName}{isMe ? ' ●' : ''}
             </div>
-            <div className={styles.barTrack}>
+            <div className={styles.barWrap}>
               <div
-                className={`${styles.barFill} ${danger ? styles.danger : high ? styles.high : ''}`}
+                className={`${styles.bar} ${danger ? styles.danger : safe ? styles.safe : ''}`}
                 style={{ width: `${score}%` }}
               />
             </div>
-            <div className={`${styles.score} ${danger ? styles.dangerText : ''}`}>{score}</div>
+            <div className={`${styles.score} ${danger ? styles.dangerText : ''}`}>
+              {score}
+            </div>
           </div>
         )
       })}

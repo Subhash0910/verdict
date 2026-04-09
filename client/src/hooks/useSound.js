@@ -1,165 +1,157 @@
-// Web Audio API sound engine — zero files needed, all synthesized
-let ctx = null
-function getCtx() {
-  if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)()
-  return ctx
-}
+// Web Audio API sound engine — zero files needed, all generated tones
+const ctx = typeof window !== 'undefined' ? new (window.AudioContext || window.webkitAudioContext)() : null
 
-function tone(freq, duration, type = 'sine', gain = 0.3, delay = 0) {
-  try {
-    const c = getCtx()
-    const o = c.createOscillator()
-    const g = c.createGain()
-    o.connect(g); g.connect(c.destination)
-    o.type = type; o.frequency.value = freq
-    g.gain.setValueAtTime(0, c.currentTime + delay)
-    g.gain.linearRampToValueAtTime(gain, c.currentTime + delay + 0.01)
-    g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + delay + duration)
-    o.start(c.currentTime + delay)
-    o.stop(c.currentTime + delay + duration + 0.05)
-  } catch(e) {}
-}
+function play(type) {
+  if (!ctx) return
+  if (ctx.state === 'suspended') ctx.resume()
+  const g = ctx.createGain()
+  g.connect(ctx.destination)
 
-function noise(duration, gain = 0.15) {
-  try {
-    const c = getCtx()
-    const buf = c.createBuffer(1, c.sampleRate * duration, c.sampleRate)
-    const data = buf.getChannelData(0)
-    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1
-    const src = c.createBufferSource()
-    const g = c.createGain()
-    src.buffer = buf; src.connect(g); g.connect(c.destination)
-    g.gain.setValueAtTime(gain, c.currentTime)
-    g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + duration)
-    src.start()
-  } catch(e) {}
-}
+  switch (type) {
 
-export const SFX = {
-  // Role reveal — typewriter tick
-  tick: () => tone(800, 0.04, 'square', 0.08),
+    case 'tick': {
+      const o = ctx.createOscillator()
+      o.connect(g); g.gain.setValueAtTime(0.08, ctx.currentTime)
+      o.type = 'sine'; o.frequency.setValueAtTime(1200, ctx.currentTime)
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05)
+      o.start(); o.stop(ctx.currentTime + 0.05)
+      break
+    }
 
-  // Role card slam
-  cardSlam: () => {
-    noise(0.12, 0.25)
-    tone(120, 0.3, 'sine', 0.4)
-  },
+    case 'whoosh': {
+      const buf = ctx.createBuffer(1, ctx.sampleRate * 0.3, ctx.sampleRate)
+      const d = buf.getChannelData(0)
+      for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length)
+      const s = ctx.createBufferSource(); s.buffer = buf
+      const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 800
+      s.connect(f); f.connect(g)
+      g.gain.setValueAtTime(0.3, ctx.currentTime)
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3)
+      s.start(); s.stop(ctx.currentTime + 0.3)
+      break
+    }
 
-  // Phase transition whoosh
-  whoosh: () => {
-    const c = getCtx()
-    const o = c.createOscillator()
-    const g = c.createGain()
-    o.connect(g); g.connect(c.destination)
-    o.type = 'sawtooth'
-    o.frequency.setValueAtTime(600, c.currentTime)
-    o.frequency.exponentialRampToValueAtTime(80, c.currentTime + 0.4)
-    g.gain.setValueAtTime(0.2, c.currentTime)
-    g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.4)
-    o.start(); o.stop(c.currentTime + 0.45)
-  },
+    case 'slam': {
+      // Low thud
+      const o = ctx.createOscillator()
+      o.connect(g); g.gain.setValueAtTime(0.6, ctx.currentTime)
+      o.type = 'sine'; o.frequency.setValueAtTime(120, ctx.currentTime)
+      o.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 0.15)
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25)
+      o.start(); o.stop(ctx.currentTime + 0.25)
+      // High crack
+      const buf = ctx.createBuffer(1, ctx.sampleRate * 0.08, ctx.sampleRate)
+      const d = buf.getChannelData(0)
+      for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length)
+      const s = ctx.createBufferSource(); s.buffer = buf
+      const g2 = ctx.createGain(); g2.gain.setValueAtTime(0.4, ctx.currentTime)
+      s.connect(g2); g2.connect(ctx.destination)
+      s.start(); s.stop(ctx.currentTime + 0.08)
+      break
+    }
 
-  // Evidence slam — 3 impacts
-  evidenceSlam: (i = 0) => {
-    noise(0.08, 0.3)
-    tone(200 - i * 40, 0.25, 'square', 0.25, 0)
-  },
+    case 'heartbeat': {
+      const beat = (t) => {
+        const o = ctx.createOscillator()
+        const g2 = ctx.createGain()
+        o.connect(g2); g2.connect(ctx.destination)
+        o.type = 'sine'; o.frequency.setValueAtTime(60, t)
+        g2.gain.setValueAtTime(0, t)
+        g2.gain.linearRampToValueAtTime(0.5, t + 0.04)
+        g2.gain.exponentialRampToValueAtTime(0.001, t + 0.18)
+        o.start(t); o.stop(t + 0.18)
+      }
+      beat(ctx.currentTime)
+      beat(ctx.currentTime + 0.22)
+      break
+    }
 
-  // Accusation — alarm
-  accuse: () => {
-    tone(880, 0.15, 'square', 0.3, 0)
-    tone(660, 0.15, 'square', 0.3, 0.18)
-    tone(880, 0.15, 'square', 0.3, 0.36)
-  },
+    case 'gavel': {
+      const o = ctx.createOscillator()
+      o.connect(g); g.gain.setValueAtTime(0.7, ctx.currentTime)
+      o.type = 'sawtooth'; o.frequency.setValueAtTime(200, ctx.currentTime)
+      o.frequency.exponentialRampToValueAtTime(60, ctx.currentTime + 0.12)
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3)
+      o.start(); o.stop(ctx.currentTime + 0.3)
+      break
+    }
 
-  // Confession gavel
-  gavel: () => {
-    noise(0.05, 0.5)
-    tone(150, 0.4, 'sine', 0.5)
-  },
+    case 'elimination': {
+      // Dramatic descending chord
+      [220, 277, 330].forEach((freq, i) => {
+        const o = ctx.createOscillator()
+        const g2 = ctx.createGain()
+        o.connect(g2); g2.connect(ctx.destination)
+        o.type = 'sine'; o.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.08)
+        g2.gain.setValueAtTime(0.3, ctx.currentTime + i * 0.08)
+        g2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.5)
+        o.start(ctx.currentTime + i * 0.08)
+        o.stop(ctx.currentTime + 1.5)
+      })
+      break
+    }
 
-  // Vote card flip
-  cardFlip: () => {
-    noise(0.06, 0.2)
-    tone(400, 0.1, 'triangle', 0.15)
-  },
+    case 'reveal': {
+      // Rising arpeggio
+      [523, 659, 784, 1047].forEach((freq, i) => {
+        const o = ctx.createOscillator()
+        const g2 = ctx.createGain()
+        o.connect(g2); g2.connect(ctx.destination)
+        o.type = 'sine'; o.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.12)
+        g2.gain.setValueAtTime(0.2, ctx.currentTime + i * 0.12)
+        g2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.12 + 0.4)
+        o.start(ctx.currentTime + i * 0.12)
+        o.stop(ctx.currentTime + i * 0.12 + 0.4)
+      })
+      break
+    }
 
-  // Heartbeat during vote
-  heartbeat: () => {
-    tone(80, 0.08, 'sine', 0.4, 0)
-    tone(70, 0.1, 'sine', 0.4, 0.1)
-  },
+    case 'trust_drop': {
+      const o = ctx.createOscillator()
+      o.connect(g); g.gain.setValueAtTime(0.3, ctx.currentTime)
+      o.type = 'sine'; o.frequency.setValueAtTime(440, ctx.currentTime)
+      o.frequency.exponentialRampToValueAtTime(220, ctx.currentTime + 0.3)
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3)
+      o.start(); o.stop(ctx.currentTime + 0.3)
+      break
+    }
 
-  // Elimination — dramatic sting
-  elimination: () => {
-    noise(0.2, 0.4)
-    tone(55, 1.2, 'sawtooth', 0.35)
-    tone(110, 0.6, 'sine', 0.2, 0.3)
-  },
+    case 'trust_rise': {
+      const o = ctx.createOscillator()
+      o.connect(g); g.gain.setValueAtTime(0.2, ctx.currentTime)
+      o.type = 'sine'; o.frequency.setValueAtTime(440, ctx.currentTime)
+      o.frequency.exponentialRampToValueAtTime(660, ctx.currentTime + 0.2)
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2)
+      o.start(); o.stop(ctx.currentTime + 0.2)
+      break
+    }
 
-  // World event slam
-  worldEvent: () => {
-    noise(0.1, 0.6)
-    tone(60, 0.8, 'sine', 0.5)
-    tone(180, 0.3, 'square', 0.2, 0.1)
-  },
+    case 'vote_flip': {
+      const o = ctx.createOscillator()
+      o.connect(g); g.gain.setValueAtTime(0.15, ctx.currentTime)
+      o.type = 'triangle'; o.frequency.setValueAtTime(800, ctx.currentTime)
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1)
+      o.start(); o.stop(ctx.currentTime + 0.1)
+      break
+    }
 
-  // Trust drop
-  trustDrop: () => {
-    tone(440, 0.1, 'sine', 0.2, 0)
-    tone(330, 0.1, 'sine', 0.2, 0.1)
-    tone(220, 0.2, 'sine', 0.2, 0.2)
-  },
+    case 'accusation': {
+      // Alarm-like pulse x3
+      [0, 0.15, 0.3].forEach(t => {
+        const o = ctx.createOscillator()
+        const g2 = ctx.createGain()
+        o.connect(g2); g2.connect(ctx.destination)
+        o.type = 'square'; o.frequency.setValueAtTime(880, ctx.currentTime + t)
+        g2.gain.setValueAtTime(0.15, ctx.currentTime + t)
+        g2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + 0.12)
+        o.start(ctx.currentTime + t); o.stop(ctx.currentTime + t + 0.12)
+      })
+      break
+    }
 
-  // Trust rise
-  trustRise: () => {
-    tone(330, 0.1, 'sine', 0.15, 0)
-    tone(440, 0.1, 'sine', 0.15, 0.1)
-    tone(550, 0.2, 'sine', 0.15, 0.2)
-  },
-
-  // Game over
-  gameOver: () => {
-    tone(440, 0.3, 'sine', 0.3, 0)
-    tone(370, 0.3, 'sine', 0.3, 0.3)
-    tone(220, 0.8, 'sine', 0.4, 0.6)
-  },
-
-  // Case file typewriter
-  caseFileTick: () => tone(600, 0.03, 'square', 0.06),
-
-  // Observer note drop
-  observerNote: () => {
-    tone(220, 0.4, 'sine', 0.15, 0)
-    tone(277, 0.4, 'sine', 0.1, 0.2)
+    default: break
   }
 }
 
-export function screenShake(intensity = 8, duration = 400) {
-  const el = document.getElementById('game-root') || document.body
-  let start = null
-  function step(ts) {
-    if (!start) start = ts
-    const progress = ts - start
-    if (progress > duration) { el.style.transform = ''; return }
-    const remaining = 1 - progress / duration
-    const x = (Math.random() - 0.5) * intensity * remaining
-    const y = (Math.random() - 0.5) * intensity * remaining
-    el.style.transform = `translate(${x}px, ${y}px)`
-    requestAnimationFrame(step)
-  }
-  requestAnimationFrame(step)
-}
-
-export function flashScreen(color = 'rgba(255,255,255,0.85)', duration = 120) {
-  const el = document.createElement('div')
-  el.style.cssText = `position:fixed;inset:0;background:${color};z-index:9999;pointer-events:none;transition:opacity ${duration}ms ease`
-  document.body.appendChild(el)
-  requestAnimationFrame(() => {
-    el.style.opacity = '1'
-    setTimeout(() => {
-      el.style.opacity = '0'
-      setTimeout(() => el.remove(), duration)
-    }, 30)
-  })
-}
+export const sound = { play }
+export function useSound() { return sound }
