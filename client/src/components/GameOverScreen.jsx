@@ -1,57 +1,54 @@
 import React, { useState, useEffect } from 'react'
 import styles from './GameOverScreen.module.css'
+import ShareCard from './ShareCard'
+import { useSound } from '../hooks/useSound'
 
-function useTypewriter(text, delay = 40) {
+export default function GameOverScreen({ result, myRole, caseFile, theme, onPlayAgain }) {
   const [displayed, setDisplayed] = useState('')
   const [done, setDone] = useState(false)
-  useEffect(() => {
-    if (!text) return
-    setDisplayed('')
-    setDone(false)
-    let i = 0
-    const t = setInterval(() => {
-      setDisplayed(text.slice(0, ++i))
-      if (i >= text.length) { clearInterval(t); setDone(true) }
-    }, delay)
-    return () => clearInterval(t)
-  }, [text])
-  return { displayed, done }
-}
+  const sound = useSound()
 
-export default function GameOverScreen({ result, myRole, caseFile, onPlayAgain }) {
-  const iWon = (result?.winner === 'good' && myRole?.alignment === 'good')
-            || (result?.winner === 'evil' && myRole?.alignment === 'evil')
-  const { displayed: caseText, done: caseDone } = useTypewriter(caseFile || '', 38)
+  useEffect(() => {
+    if (!caseFile) return
+    let i = 0
+    const iv = setInterval(() => {
+      if (i >= caseFile.length) { clearInterval(iv); setDone(true); return }
+      sound.playTick()
+      setDisplayed(caseFile.slice(0, ++i))
+    }, 40)
+    return () => clearInterval(iv)
+  }, [caseFile])
+
+  const isWinner = result?.winner === (myRole?.alignment || 'good')
 
   return (
     <div className={styles.container}>
-      <div className={styles.verdict}>
-        {iWon ? '🏆 VICTORY' : '💀 DEFEATED'}
+      <div className={styles.result}>
+        {isWinner
+          ? <span className={styles.win}>🏆 YOUR SIDE WON</span>
+          : <span className={styles.lose}>💥 YOU LOST</span>
+        }
       </div>
 
-      <div className={`${styles.winner} ${result?.winner === 'evil' ? styles.evil : styles.good}`}>
-        {result?.winner === 'evil' ? 'The Antagonists win' : 'The Cooperators prevail'}
-      </div>
-
-      <div className={styles.myRole}>
-        You were: <strong>{myRole?.roleName || myRole?.role}</strong>
-      </div>
-
-      {caseFile && (
-        <div className={styles.caseFile}>
-          <div className={styles.caseLabel}>📋 CASE FILE</div>
-          <p className={styles.caseText}>
-            {caseText}
-            {!caseDone && <span className={styles.cursor}>|</span>}
-          </p>
+      <div className={styles.caseFileBox}>
+        <div className={styles.caseLabel}>CASE FILE</div>
+        <div className={styles.caseText}>
+          {displayed}<span className={styles.cursor}>|</span>
         </div>
+      </div>
+
+      {done && caseFile && (
+        <ShareCard
+          theme={theme || 'VERDICT'}
+          caseFile={caseFile}
+          myRoleName={myRole?.roleName || '???'}
+          winner={result?.winner}
+        />
       )}
 
-      {caseDone && (
-        <button className={styles.playAgainBtn} onClick={onPlayAgain}>
-          Play Again
-        </button>
-      )}
+      <button className={styles.playAgainBtn} onClick={onPlayAgain}>
+        🔁 Play Again
+      </button>
     </div>
   )
 }

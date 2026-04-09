@@ -15,115 +15,79 @@ import java.util.Map;
 @Slf4j
 public class ConfessionController {
 
-    private final SimpMessagingTemplate messagingTemplate;
     private final GameStateService gameStateService;
+    private final SimpMessagingTemplate messagingTemplate;
 
-    /** POST /api/game/{roomCode}/confession/demand
-     *  Body: { askerName, targetName, question }
-     *  Broadcasts to everyone so target sees the overlay
-     */
-    @PostMapping("/{roomCode}/confession/demand")
-    public ResponseEntity<Map<String,String>> demand(
+    /** One player demands confession from another */
+    @PostMapping("/{roomCode}/confess/demand")
+    public ResponseEntity<Map<String, String>> demandConfession(
             @PathVariable String roomCode,
-            @RequestBody Map<String,String> body) {
+            @RequestBody Map<String, String> body) {
 
-        String askerName  = body.get("askerName");
-        String targetName = body.get("targetName");
-        String question   = body.get("question");
+        String from     = body.get("from");
+        String to       = body.get("to");
+        String question = body.get("question");
 
-        // Announce in evidence channel
-        messagingTemplate.convertAndSend("/topic/game/" + roomCode + "/evidence", Map.of(
-            "type",  "confession",
-            "text",  askerName + " demands a confession from " + targetName
+        // Check: only one confession per round per player
+        var state = gameStateService.getState(roomCode);
+        if (state == null) return ResponseEntity.badRequest().body(Map.of("error","Room not found"));
+        if (state.confessionUsed.contains(from))
+            return ResponseEntity.badRequest().body(Map.of("error","Already used confession this round"));
+        state.confessionUsed.add(from);
+
+        // Broadcast to target's private channel — forces UI overlay
+        messagingTemplate.convertAndSend("/topic/game/" + roomCode + "/confess/" + to, Map.of(
+            "from", from,
+            "question", question
         ));
 
-        // Broadcast confession request to ALL (target reacts to it)
-        messagingTemplate.convertAndSend("/topic/game/" + roomCode, Map.of(
-            "type",       "CONFESSION_DEMAND",
-            "askerName",  askerName,
-            "targetName", targetName,
-            "question",   question
+        // Tell everyone a confession was demanded (without revealing question)
+        messagingTemplate.convertAndSend("/topic/game/" + roomCode + "/chat", Map.of(
+            "playerName", "🎤 Confession",
+            "text", from + " demanded a confession from " + to + "!",
+            "isSystem", true,
+            "targetPlayer", to,
+            "trustDelta", -10  // Being interrogated drops trust slightly
         ));
 
-        log.info("Confession demanded: {} → {} in room {}", askerName, targetName, roomCode);
-        return ResponseEntity.ok(Map.of("status", "demanded"));
+        log.info("Confession demanded: {} → {} in room {}", from, to, roomCode);
+        return ResponseEntity.ok(Map.of("status","demanded"));
     }
 
-    /** POST /api/game/{roomCode}/confession/answer
-     *  Body: { targetName, answer (YES|NO), question, askerName }
-     *  Broadcasts answer as a dramatic chat event
-     */
-    @PostMapping("/{roomCode}/confession/answer")
-    public ResponseEntity<Map<String,String>> answer(
+    /** Target answers the confession */
+    @PostMapping("/{roomCode}/confess/answer")
+    public ResponseEntity<Map<String, String>> answerConfession(
             @PathVariable String roomCode,
-            @RequestBody Map<String,String> body) {
+            @RequestBody Map<String, String> body) {
 
-        String targetName = body.get("targetName");
-        String answer     = body.get("answer");
+        String playerName = body.get("playerName");
+        String answer     = body.get("answer");   // YES or NO
         String question   = body.get("question");
-        String askerName  = body.get("askerName");
+        String from       = body.get("from");
 
-        String answerEmoji = "YES".equals(answer) ? "✅" : "❌";
-        String chatText = targetName + " answered \"" + question + "\" — " + answerEmoji + " " + answer;
-
-        // Into chat as a dramatic event
+        // Slam the answer into evidence for everyone
+        String text = "🎤 " + playerName + " confessed: \"" + question + "\" → " + answer;
         messagingTemplate.convertAndSend("/topic/game/" + roomCode + "/chat", Map.of(
-            "playerName", "🏛️ Confession",
-            "text",       chatText,
-            "isConfession", true
+            "playerName", "🎤 Confession",
+            "text", text,
+            "isConfession", true,
+            "targetPlayer", playerName,
+            "trustDelta", answer.equals("YES") ? 5 : -5
         ));
 
-        // Into evidence board
-        messagingTemplate.convertAndSend("/topic/game/" + roomCode + "/evidence", Map.of(
-            "type", "confession",
-            "text", chatText
-        ));
-
-        // Clear the overlay for everyone
-        messagingTemplate.convertAndSend("/topic/game/" + roomCode, Map.of(
-            "type", "CONFESSION_ANSWERED",
-            "targetName", targetName,
-            "answer",     answer
-        ));
-
-        // Update trust — YES raises trust for target, NO drops it
+        // Trust update broadcast
         var state = gameStateService.getState(roomCode);
         if (state != null) {
-            int delta = "YES".equals(answer) ? 8 : -12;
-            state.trustScores.merge(targetName, 50, Integer::sum);
-            int newScore = Math.max(0, Math.min(100, (state.trustScores.get(targetName) + delta)));
-            state.trustScores.put(targetName, newScore);
+            int current = state.trustScores.getOrDefault(playerName, 50);
+            int delta = answer.equals("YES") ? 5 : -5;
+            state.trustScores.put(playerName, Math.max(0, Math.min(100, current + delta)));
             messagingTemplate.convertAndSend("/topic/game/" + roomCode, Map.of(
-                "type",   "TRUST_UPDATE",
+                "type", "TRUST_UPDATE",
                 "scores", state.trustScores
             ));
         }
 
-        return ResponseEntity.ok(Map.of("status", "answered"));
-    }
-
-    /** POST /api/game/{roomCode}/trust/update
-     *  Body: { playerName, delta }
-     *  Called when player is accused, defended, etc.
-     */
-    @PostMapping("/{roomCode}/trust/update")
-    public ResponseEntity<Map<String,String>> updateTrust(
-            @PathVariable String roomCode,
-            @RequestBody Map<String,Object> body) {
-
-        String playerName = (String) body.get("playerName");
-        int delta = (int) body.get("delta");
-        var state = gameStateService.getState(roomCode);
-        if (state == null) return ResponseEntity.badRequest().body(Map.of("error","room not found"));
-
-        state.trustScores.merge(playerName, 50, Integer::sum);
-        int newScore = Math.max(0, Math.min(100, state.trustScores.get(playerName) + delta));
-        state.trustScores.put(playerName, newScore);
-
-        messagingTemplate.convertAndSend("/topic/game/" + roomCode, Map.of(
-            "type",   "TRUST_UPDATE",
-            "scores", state.trustScores
-        ));
-        return ResponseEntity.ok(Map.of("status","updated"));
+        log.info("Confession answered: {} said {} in room {}", playerName, answer, roomCode);
+        return ResponseEntity.ok(Map.of("status","answered"));
     }
 }

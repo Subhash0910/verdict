@@ -1,0 +1,51 @@
+@keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+
+.wrapper {
+  display:flex; flex-direction:column; align-items:center; gap:16px;
+  animation:fadeUp 0.5s ease;
+}
+
+.card {
+  width:340px;
+  background:#080810;
+  border:1px solid #2a2a3a;
+  border-radius:16px;
+  padding:28px 24px;
+  display:flex; flex-direction:column; gap:14px;
+  font-family:'Segoe UI',system-ui,sans-serif;
+}
+
+.header {
+  display:flex; justify-content:space-between; align-items:center;
+}
+.logo {
+  font-size:18px; font-weight:900; letter-spacing:4px; color:#7b2d8b;
+}
+.tag {
+  font-size:8px; letter-spacing:4px; color:#333; text-transform:uppercase;
+}
+
+.theme {
+  font-size:11px; letter-spacing:3px; color:#555;
+  text-transform:uppercase; border-bottom:1px solid #1a1a2e; padding-bottom:10px;
+}
+
+.caseText {
+  font-size:14px; color:#ccc; line-height:1.8;
+  font-style:italic;
+}
+
+.footer {
+  display:flex; justify-content:space-between; align-items:center;
+  padding-top:10px; border-top:1px solid #1a1a2e;
+}
+.role { font-size:10px; color:#555; letter-spacing:1px; }
+.site { font-size:10px; color:#333; letter-spacing:2px; }
+
+.shareBtn {
+  background:#7b2d8b; border:none; border-radius:10px;
+  padding:12px 32px; color:#fff; font-size:14px;
+  font-weight:700; cursor:pointer; letter-spacing:1px;
+  transition:background 0.2s;
+}
+.shareBtn:hover { background:#9b3dab; }
