@@ -2,11 +2,36 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>VERDICT</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+    <title>VERDICT — Social Deduction</title>
+    <meta name="description" content="AI-powered social deduction game. One of you is the antagonist. Can you find them before it's too late?" />
+    <meta name="theme-color" content="#0a0a0f" />
+
+    <!-- PWA manifest -->
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- Apple PWA meta -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="VERDICT" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+
+    <!-- Open Graph (for link sharing) -->
+    <meta property="og:title" content="VERDICT — Social Deduction" />
+    <meta property="og:description" content="One of you is the antagonist. AI assigns roles, drives the story. Play with friends." />
+    <meta property="og:type" content="website" />
+
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
-      body { background: #0a0a0f; overflow: hidden; font-family: 'Segoe UI', system-ui, sans-serif; }
+      body {
+        background: #0a0a0f;
+        overflow: hidden;
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        /* Safe area insets for notched phones */
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+      }
       #root { width: 100vw; height: 100vh; }
     </style>
   </head>
