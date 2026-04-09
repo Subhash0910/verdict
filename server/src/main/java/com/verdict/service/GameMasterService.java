@@ -22,7 +22,7 @@ public class GameMasterService {
     private static final String GEMINI_URL =
             "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=";
 
-    // ── Game Setup ─────────────────────────────────────────────────────────
+    // ── Game Setup ──────────────────────────────────────────────────────────────────────
 
     public GameSetup generateGameSetup(int playerCount, List<String> playerNames) {
         if (geminiApiKey == null || geminiApiKey.isBlank()) {
@@ -40,7 +40,7 @@ public class GameMasterService {
         }
     }
 
-    // ── World Event ────────────────────────────────────────────────────────
+    // ── World Event ───────────────────────────────────────────────────────────────────
 
     public WorldEvent generateWorldEvent(String theme, List<String> alivePlayers) {
         if (geminiApiKey == null || geminiApiKey.isBlank())
@@ -53,14 +53,14 @@ public class GameMasterService {
         }
     }
 
-    // ── Observer Note ──────────────────────────────────────────────────────
+    // ── Observer Note ────────────────────────────────────────────────────────────
 
     public String generateObserverNote(String theme, List<String> abilityLog) {
         if (geminiApiKey == null || geminiApiKey.isBlank())
             return "Someone used an ability this round that they haven't mentioned.";
         try {
             String prompt = """
-                    You are the Observer in VERDICT, a social deduction game. Theme: "%s".
+                    You are the Observer in VERDICT, a social deduction game. Theme: \"%s\".
                     Abilities used this round: %s
 
                     Write ONE cryptic hint for the discussion phase.
@@ -69,7 +69,7 @@ public class GameMasterService {
                     - Make it suspicious but not definitive — players should debate it
                     - 1 sentence only
                     - Style: mysterious, like a surveillance report
-                    - Example: "Someone's ability result contradicts what they claimed in the lobby."
+                    - Example: \"Someone's ability result contradicts what they claimed in the lobby.\"
                     Just the sentence. Nothing else.
                     """.formatted(theme, String.join("; ", abilityLog));
             return clean(callGemini(prompt));
@@ -78,7 +78,7 @@ public class GameMasterService {
         }
     }
 
-    // ── Case File ──────────────────────────────────────────────────────────
+    // ── Case File ────────────────────────────────────────────────────────────────────
 
     public String generateCaseFile(String theme, List<String> playerNames,
                                     String traitorName, String traitorRole,
@@ -92,7 +92,7 @@ public class GameMasterService {
         }
     }
 
-    // ── Prompts ────────────────────────────────────────────────────────────
+    // ── Prompts ─────────────────────────────────────────────────────────────────────
 
     private String buildSetupPrompt(int playerCount, List<String> playerNames) {
         return """
@@ -110,6 +110,7 @@ public class GameMasterService {
                       "playerName": "<exact name from list>",
                       "roleName": "dramatic one-word role name",
                       "alignment": "good|evil",
+                      "flavorText": "1 short atmospheric sentence of lore for this role. Written in second person, present tense. E.g. 'You've seen things no one should see — and learned to stay very, very quiet.'",
                       "winCondition": "specific, personal win condition — not just 'survive'",
                       "ability": "ONE active ability usable once per game — must target another player, creates public information (e.g. 'Force one player to publicly answer yes or no: are you on the evil side?')",
                       "restriction": "one restriction that adds tension (e.g. 'Cannot vote in round 1')"
@@ -125,6 +126,7 @@ public class GameMasterService {
                 - Exactly %s antagonist(s). Make the line between good and evil BLURRY.
                 - Abilities MUST create public information when used — this is what discussion is based on
                 - Each ability should be unique across all roles
+                - flavorText must feel personal and atmospheric — never generic
                 - Keep it Gen Z, dramatic, screenshot-worthy
                 """.formatted(
                         playerCount, String.join(", ", playerNames),
@@ -134,7 +136,7 @@ public class GameMasterService {
 
     private String buildWorldEventPrompt(String theme, List<String> alivePlayers) {
         return """
-                You are the Game Master for VERDICT. Theme: "%s". Alive players: %s.
+                You are the Game Master for VERDICT. Theme: \"%s\". Alive players: %s.
                 Generate ONE world event that interrupts the game RIGHT NOW.
                 Respond ONLY with valid JSON, no markdown:
                 {
@@ -158,7 +160,7 @@ public class GameMasterService {
                         winner, String.join(" → ", eliminationOrder));
     }
 
-    // ── Gemini call ────────────────────────────────────────────────────────
+    // ── Gemini call ──────────────────────────────────────────────────────────────────
 
     private String callGemini(String prompt) {
         Map<String, Object> req = Map.of(
@@ -179,19 +181,47 @@ public class GameMasterService {
         return raw.replaceAll("(?s)```json\\s*", "").replaceAll("```", "").trim();
     }
 
-    // ── Mock fallback ──────────────────────────────────────────────────────
+    // ── Mock fallback ──────────────────────────────────────────────────────────────
 
     private GameSetup mockGameSetup(List<String> playerNames) {
+        record RoleDef(String name, String alignment, String win, String ability, String restriction, String flavor) {}
+        var defs = List.of(
+            new RoleDef("Phantom",   "evil",  "Eliminate all Archivists before round 3",
+                "Force one player to publicly answer: are you on the evil side?",
+                "Cannot vote in round 1",
+                "You've been in the shadows so long, you've forgotten what sunlight feels like."),
+            new RoleDef("Archivist", "good",  "Vote out the Phantom before they reach majority",
+                "Reveal one player's ability name to the entire group",
+                "Cannot accuse the same player twice",
+                "You keep records of everything — except the one thing that matters most right now."),
+            new RoleDef("Witness",   "good",  "Survive until the Phantom is voted out",
+                "Force one player to publicly confirm or deny they used their ability this round",
+                "Must speak at least once per discussion phase",
+                "You saw something you weren't supposed to. Now they know you saw it."),
+            new RoleDef("Cipher",    "good",  "Decode the Phantom's identity and vote them out",
+                "Announce one player's alignment as either 'Verified Safe' or 'Unverified' — your choice of label",
+                "Cannot be the first to accuse in any round",
+                "Every word in this room is a clue. You just have to listen harder than everyone else."),
+            new RoleDef("Specter",   "good",  "Keep the group alive until final vote",
+                "Block one player's vote this round — their vote will not count",
+                "Cannot use ability in the last round",
+                "You move between suspicion and trust like a ghost. Nobody quite knows what you are."),
+            new RoleDef("Handler",   "good",  "Identify and eliminate the Phantom",
+                "Force one player to publicly state who they trust most in the room",
+                "Must vote in every round or lose your ability",
+                "You were trained for exactly this scenario. The problem is — so were they.")
+        );
         List<GameSetup.PlayerRole> roles = new java.util.ArrayList<>();
         for (int i = 0; i < playerNames.size(); i++) {
-            boolean evil = i == 0;
+            var def = defs.get(i % defs.size());
             roles.add(GameSetup.PlayerRole.builder()
                     .playerName(playerNames.get(i))
-                    .roleName(evil ? "Phantom" : i == 1 ? "Archivist" : "Witness")
-                    .alignment(evil ? "evil" : "good")
-                    .winCondition(evil ? "Eliminate all Archivists before round 3" : "Vote out the Phantom")
-                    .ability(evil ? "Force one player to publicly answer: are you on the evil side?" : "Reveal one player's ability name to the group")
-                    .restriction(evil ? "Cannot vote in round 1" : "Cannot accuse the same player twice")
+                    .roleName(def.name())
+                    .alignment(i == 0 ? "evil" : "good")
+                    .flavorText(def.flavor())
+                    .winCondition(def.win())
+                    .ability(def.ability())
+                    .restriction(def.restriction())
                     .build());
         }
         return GameSetup.builder()
@@ -205,7 +235,7 @@ public class GameMasterService {
                 .build();
     }
 
-    // ── DTOs ───────────────────────────────────────────────────────────────
+    // ── DTOs ─────────────────────────────────────────────────────────────────────────
 
     @lombok.Data @lombok.Builder @lombok.NoArgsConstructor @lombok.AllArgsConstructor
     public static class GameSetup {
@@ -219,6 +249,7 @@ public class GameMasterService {
             private String playerName;
             private String roleName;
             private String alignment;
+            private String flavorText;   // NEW — 1-line atmospheric lore, shown on role card
             private String winCondition;
             private String ability;
             private String restriction;
