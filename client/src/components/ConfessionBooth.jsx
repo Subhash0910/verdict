@@ -12,7 +12,7 @@ export function ConfessionDemand({ players, myPlayerName, onDemand, used }) {
 
   function submit() {
     if (!target || !question.trim() || sent || used) return
-    sound.play('gavel')
+    sound.playGavel()
     setSent(true)
     onDemand(target, question.trim())
   }
@@ -63,8 +63,7 @@ export function ConfessionPrompt({ confession, myPlayerName, onAnswer }) {
 
   useEffect(() => {
     if (confession?.targetName === myPlayerName) {
-      sound.play('gavel')
-      // Vibrate if mobile
+      sound.playGavel()
       if (navigator.vibrate) navigator.vibrate([200, 100, 200])
     }
   }, [confession])
@@ -72,7 +71,7 @@ export function ConfessionPrompt({ confession, myPlayerName, onAnswer }) {
   if (!confession || confession.targetName !== myPlayerName || answered) return null
 
   function answer(val) {
-    sound.play('slam')
+    sound.playSlam()
     setAnswered(true)
     onAnswer(val)
   }
@@ -96,3 +95,6 @@ export function ConfessionPrompt({ confession, myPlayerName, onAnswer }) {
     </div>
   )
 }
+
+// Default export — the demand panel (used in DiscussionPhase)
+export default ConfessionDemand

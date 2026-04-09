@@ -2,15 +2,14 @@ import React, { useState, useRef, useEffect } from 'react'
 import styles from './DiscussionPhase.module.css'
 import TrustMeter from './TrustMeter'
 import EvidenceBoard from './EvidenceBoard'
-import ConfessionBooth from './ConfessionBooth'
-import ConfessionPrompt from './ConfessionPrompt'
+import { ConfessionDemand, ConfessionPrompt } from './ConfessionBooth'
 import { SFX, screenShake, flashScreen } from '../hooks/useSound'
 
 const ALIGNMENT_COLOR = { evil: '#e63946', good: '#00b4d8' }
 
 export default function DiscussionPhase({
   theme, myRole, players, messages, timer,
-  isEliminated, onSendChat, onAccuse, onConfessionDemand,
+  isEliminated, onSendChat, onAccuse, onDemandConfession,
   confessionRequest, trustScores, evidenceEvents
 }) {
   const [input, setInput] = useState('')
@@ -21,11 +20,9 @@ export default function DiscussionPhase({
 
   useEffect(() => {
     if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight
-    // Play tick for new messages
     SFX.tick()
   }, [messages])
 
-  // Urgent heartbeat
   useEffect(() => {
     if (timer <= 10 && timer > 0 && timer !== prevTimer.current) {
       SFX.heartbeat()
@@ -47,7 +44,7 @@ export default function DiscussionPhase({
   }
 
   function handleAccuse(playerName) {
-    SFX.accuse()
+    SFX.accusation()
     flashScreen('rgba(230,57,70,0.4)', 200)
     screenShake(10, 400)
     onAccuse(playerName)
@@ -55,26 +52,28 @@ export default function DiscussionPhase({
 
   function handleConfessionDemand(target, question) {
     setUsedConfession(true)
-    onConfessionDemand(target, question)
+    setShowConfessionBooth(false)
+    onDemandConfession(target, question)
   }
 
   return (
     <div className={styles.container}>
 
-      {/* Confession modals */}
+      {/* Confession demand panel */}
       {showConfessionBooth && !usedConfession && (
-        <ConfessionBooth
+        <ConfessionDemand
           players={players}
           myPlayerName={myRole?.playerName}
-          usedConfession={usedConfession}
+          used={usedConfession}
           onDemand={handleConfessionDemand}
-          onClose={() => setShowConfessionBooth(false)}
         />
       )}
+
+      {/* Forced confession overlay for the target */}
       {confessionRequest && (
         <ConfessionPrompt
-          from={confessionRequest.from}
-          question={confessionRequest.question}
+          confession={{ targetName: myRole?.playerName, askerName: confessionRequest.from, question: confessionRequest.question }}
+          myPlayerName={myRole?.playerName}
           onAnswer={(ans) => {
             onSendChat(`[CONFESSION] ${ans}`)
           }}
@@ -89,7 +88,7 @@ export default function DiscussionPhase({
         </div>
       </div>
 
-      {/* Trust meters — full width under header */}
+      {/* Trust meters */}
       <TrustMeter
         players={players.filter(p => p.isAlive !== false)}
         trustScores={trustScores || {}}
@@ -110,9 +109,7 @@ export default function DiscussionPhase({
             {messages.length === 0 && (
               <div className={styles.emptyChat}>
                 The room is silent...<br />
-                <span style={{fontSize:'12px',color:'#2a2a3a'}}>
-                  Someone make a move.
-                </span>
+                <span style={{fontSize:'12px',color:'#2a2a3a'}}>Someone make a move.</span>
               </div>
             )}
             {messages.map((m, i) => (
@@ -156,7 +153,7 @@ export default function DiscussionPhase({
             const isMe = p.playerName === myRole?.playerName
             return (
               <div key={p.playerName} className={styles.playerRow}>
-                <div className={styles.playerAvatar}>{p.playerName[0].toUpperCase()}</div>
+                <div className={styles.playerAvatar}>{p.playerName[0]?.toUpperCase()}</div>
                 <div className={styles.playerName}>
                   {p.playerName}
                   {isMe && <span className={styles.youBadge}> you</span>}
@@ -178,7 +175,7 @@ export default function DiscussionPhase({
           {!isEliminated && (
             <button
               className={`${styles.confessionBtn} ${usedConfession ? styles.used : ''}`}
-              onClick={() => !usedConfession && setShowConfessionBooth(true)}
+              onClick={() => !usedConfession && setShowConfessionBooth(v => !v)}
               disabled={usedConfession}
             >
               {usedConfession ? '🎤 Confession Used' : '🎤 Demand Confession'}
