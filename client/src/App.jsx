@@ -1,40 +1,26 @@
 import React, { useEffect, useState } from 'react'
-import axios from 'axios'
 import HomeScreen from './screens/HomeScreen'
 import LobbyScreen from './screens/LobbyScreen'
 import GameScreen from './screens/GameScreen'
 import InstallBanner from './components/InstallBanner'
 
 function App() {
-  const [screen, setScreen]       = useState('home')
-  const [roomData, setRoomData]   = useState(null)
+  const [screen, setScreen]         = useState('home')
+  const [roomData, setRoomData]     = useState(null)
   const [playerData, setPlayerData] = useState(null)
+  const [gameTheme, setGameTheme]   = useState('')
 
-  // Register service worker
-  useEffect(() => {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch(err =>
-        console.warn('SW registration failed:', err)
-      )
-    }
-  }, [])
-
-  // Handle ?join=ROOMCODE deep link (from QR or share link)
+  // Deep link query param handling
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const joinCode = params.get('join')
     const action   = params.get('action')
     if (joinCode) {
-      // Pre-fill join code — HomeScreen reads this via props or sessionStorage
       sessionStorage.setItem('verdict_autojoin', joinCode)
       window.history.replaceState({}, '', '/')
     }
-    if (action === 'create') {
-      sessionStorage.setItem('verdict_autoaction', 'create')
-      window.history.replaceState({}, '', '/')
-    }
-    if (action === 'join') {
-      sessionStorage.setItem('verdict_autoaction', 'join')
+    if (action) {
+      sessionStorage.setItem('verdict_autoaction', action)
       window.history.replaceState({}, '', '/')
     }
   }, [])
@@ -46,18 +32,31 @@ function App() {
   }
 
   function handleGameStart(theme, synopsis) {
+    setGameTheme(theme || '')
     setScreen('game')
+  }
+
+  // Play Again: server reset already called by GameScreen.
+  // Just return to lobby — room + players are still joined.
+  function handlePlayAgain() {
+    setScreen('lobby')
   }
 
   function handleLeave() {
     setRoomData(null)
     setPlayerData(null)
+    setGameTheme('')
     setScreen('home')
   }
 
   return (
     <>
-      {screen === 'home'  && <HomeScreen onRoomReady={handleRoomReady} />}
+      {screen === 'home' && (
+        <HomeScreen
+          onRoomReady={handleRoomReady}
+        />
+      )}
+
       {screen === 'lobby' && (
         <LobbyScreen
           roomData={roomData}
@@ -66,14 +65,17 @@ function App() {
           onGameStart={handleGameStart}
         />
       )}
-      {screen === 'game'  && (
+
+      {screen === 'game' && (
         <GameScreen
           roomData={roomData}
           playerData={playerData}
-          onLeave={handleLeave}
+          initialTheme={gameTheme}
+          onPlayAgain={handlePlayAgain}
+          onExit={handleLeave}
         />
       )}
-      {/* PWA install banner — shown only when browser fires beforeinstallprompt */}
+
       <InstallBanner />
     </>
   )

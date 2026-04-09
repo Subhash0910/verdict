@@ -11,30 +11,40 @@ import GameOverScreen from '../components/GameOverScreen'
 import WorldEvent from '../components/WorldEvent'
 import styles from './GameScreen.module.css'
 
-export default function GameScreen({ roomCode, playerId, playerName, initialTheme, onExit }) {
-  const clientRef   = useRef(null)
-  const timerRef    = useRef(null)
-  const [phase, setPhase]           = useState('LOADING')
-  const [theme, setTheme]           = useState(initialTheme || '')
-  const [myRole, setMyRole]         = useState(null)
-  const [players, setPlayers]       = useState([])
-  const [votes, setVotes]           = useState({})
-  const [elimination, setElimination]   = useState(null)
-  const [gameResult, setGameResult]     = useState(null)
-  const [caseFile, setCaseFile]     = useState('')
-  const [timer, setTimer]           = useState(0)
-  const [messages, setMessages]     = useState([])
-  const [worldEvent, setWorldEvent] = useState(null)
-  const [isEliminated, setIsEliminated] = useState(false)
+/**
+ * GameScreen accepts either flat props (roomCode, playerId, playerName)
+ * or object props (roomData, playerData) from App.jsx.
+ */
+export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn, roomData, playerData, initialTheme, onExit, onPlayAgain }) {
+  // Resolve props — accept both flat and object form
+  const roomCode   = rc   || roomData?.roomCode
+  const playerId   = pid  || playerData?.playerId
+  const playerName = pn   || playerData?.playerName
+
+  const clientRef = useRef(null)
+  const timerRef  = useRef(null)
+
+  const [phase, setPhase]                   = useState('LOADING')
+  const [theme, setTheme]                   = useState(initialTheme || '')
+  const [myRole, setMyRole]                 = useState(null)
+  const [players, setPlayers]               = useState([])
+  const [votes, setVotes]                   = useState({})
+  const [elimination, setElimination]       = useState(null)
+  const [gameResult, setGameResult]         = useState(null)
+  const [caseFile, setCaseFile]             = useState('')
+  const [gameStats, setGameStats]           = useState(null)   // ← new: stats from CASE_FILE
+  const [timer, setTimer]                   = useState(0)
+  const [messages, setMessages]             = useState([])
+  const [worldEvent, setWorldEvent]         = useState(null)
+  const [isEliminated, setIsEliminated]     = useState(false)
   const [nominatedPlayer, setNominatedPlayer] = useState(null)
-  const [trustScores, setTrustScores]   = useState({})
+  const [trustScores, setTrustScores]       = useState({})
   const [confessionRequest, setConfessionRequest] = useState(null)
   const [evidenceEvents, setEvidenceEvents] = useState([])
+  const [resetting, setResetting]           = useState(false)
 
-  // Apply dynamic theme CSS vars to :root — auto-clears on unmount
   useGameTheme(theme)
 
-  // Fetch state on mount
   useEffect(() => {
     fetch(`/api/game/${roomCode}/state`)
       .then(r => r.json())
@@ -57,7 +67,6 @@ export default function GameScreen({ roomCode, playerId, playerName, initialThem
       .catch(() => setPhase('AWAITING_ROLE'))
   }, [])
 
-  // WebSocket
   useEffect(() => {
     const client = new Client({
       webSocketFactory: () => new SockJS('/ws'),
@@ -68,7 +77,7 @@ export default function GameScreen({ roomCode, playerId, playerName, initialThem
         client.subscribe(`/topic/game/${roomCode}/role/${playerName}`, msg => {
           const d = JSON.parse(msg.body)
           if (d.type === 'ROLE_REVEAL') {
-            setMyRole({ roleName: d.roleName, alignment: d.alignment, winCondition: d.winCondition, ability: d.ability, restriction: d.restriction, playerName })
+            setMyRole({ roleName: d.roleName, alignment: d.alignment, flavorText: d.flavorText, winCondition: d.winCondition, ability: d.ability, restriction: d.restriction, playerName })
             setPhase('ROLE_REVEAL')
           }
         })
@@ -109,7 +118,7 @@ export default function GameScreen({ roomCode, playerId, playerName, initialThem
         setPhase('DISCUSSION'); startTimer(90)
         if (data.abilityLog?.length > 0) {
           setMessages(prev => [
-            ...data.abilityLog.map(t => ({ playerName: '⚡ System', text: t, isSystem: true })),
+            ...data.abilityLog.map(t => ({ playerName: '\u26A1 System', text: t, isSystem: true })),
             ...prev
           ])
         }
@@ -134,7 +143,11 @@ export default function GameScreen({ roomCode, playerId, playerName, initialThem
         if (data.gameOver) setGameResult({ winner: data.winner })
         break
       case 'CASE_FILE':
-        setCaseFile(data.text); setPhase('GAME_OVER'); break
+        // Capture stats alongside case file text
+        setCaseFile(data.text || '')
+        if (data.stats) setGameStats(data.stats)
+        setPhase('GAME_OVER')
+        break
       default: break
     }
   }
@@ -184,6 +197,7 @@ export default function GameScreen({ roomCode, playerId, playerName, initialThem
     setConfessionRequest(null)
   }
 
+  // Chat now goes through REST so messages are counted for stats
   function sendChat(text) {
     if (isEliminated) {
       fetch(`/api/game/${roomCode}/spirit`, {
@@ -191,9 +205,9 @@ export default function GameScreen({ roomCode, playerId, playerName, initialThem
         body: JSON.stringify({ message: text })
       })
     } else {
-      clientRef.current?.publish({
-        destination: `/app/game/${roomCode}/chat`,
-        body: JSON.stringify({ playerName, text, timestamp: Date.now() })
+      fetch(`/api/game/${roomCode}/chat`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playerName, text })
       })
     }
   }
@@ -204,6 +218,24 @@ export default function GameScreen({ roomCode, playerId, playerName, initialThem
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ voterId: playerName, targetId })
     })
+  }
+
+  // Play Again: call /reset, server broadcasts GAME_RESET to lobby topic,
+  // then navigate back to lobby (don't go all the way to HomeScreen)
+  async function handlePlayAgain() {
+    if (resetting) return
+    setResetting(true)
+    try {
+      await fetch(`/api/game/${roomCode}/reset`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playerId })
+      })
+    } catch (e) {
+      console.warn('Reset failed, going home anyway', e)
+    }
+    // onPlayAgain goes back to lobby; onExit goes all the way to HomeScreen
+    const handler = onPlayAgain || onExit
+    handler?.()
   }
 
   if (phase === 'LOADING') return (
@@ -221,13 +253,14 @@ export default function GameScreen({ roomCode, playerId, playerName, initialThem
           ? <RoleRevealCard
               roleName={myRole.roleName}
               alignment={myRole.alignment}
+              flavorText={myRole.flavorText}
               winCondition={myRole.winCondition}
               ability={myRole.ability}
               restriction={myRole.restriction}
               onReady={() => setPhase('ABILITY')}
             />
           : <div className={styles.screen}>
-              <div style={{ color: '#444', letterSpacing: '3px', fontSize: '13px' }}>⏳ Waiting for your role...</div>
+              <div style={{ color: '#444', letterSpacing: '3px', fontSize: '13px' }}>\u23F3 Waiting for your role...</div>
             </div>
       )}
 
@@ -283,8 +316,21 @@ export default function GameScreen({ roomCode, playerId, playerName, initialThem
           caseFile={caseFile}
           theme={theme}
           roomCode={roomCode}
-          onPlayAgain={onExit}
+          stats={gameStats}
+          myPlayerName={playerName}
+          onPlayAgain={handlePlayAgain}
         />
+      )}
+
+      {/* Resetting overlay */}
+      {resetting && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 9999, color: '#333', letterSpacing: '5px', fontSize: '12px', textTransform: 'uppercase'
+        }}>
+          Resetting...
+        </div>
       )}
     </div>
   )

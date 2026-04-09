@@ -64,17 +64,16 @@ public class GameController {
         new Thread(() -> {
             try {
                 Thread.sleep(1500);
-                // Include flavorText in ROLE_REVEAL (fix)
                 setup.getRoles().forEach(role ->
                     messagingTemplate.convertAndSend(
                         "/topic/game/" + roomCode + "/role/" + role.getPlayerName(),
-                        Map.of("type",         "ROLE_REVEAL",
-                               "roleName",      role.getRoleName(),
-                               "alignment",     role.getAlignment(),
-                               "flavorText",    role.getFlavorText() != null ? role.getFlavorText() : "",
-                               "winCondition",  role.getWinCondition(),
-                               "ability",       role.getAbility(),
-                               "restriction",   role.getRestriction())
+                        Map.of("type",        "ROLE_REVEAL",
+                               "roleName",     role.getRoleName(),
+                               "alignment",    role.getAlignment(),
+                               "flavorText",   role.getFlavorText() != null ? role.getFlavorText() : "",
+                               "winCondition", role.getWinCondition(),
+                               "ability",      role.getAbility(),
+                               "restriction",  role.getRestriction())
                     )
                 );
 
@@ -128,6 +127,32 @@ public class GameController {
         return ResponseEntity.ok(Map.of("status", "started", "theme", setup.getTheme()));
     }
 
+    /** Reset game state so the same room can play again without re-joining */
+    @PostMapping("/{roomCode}/reset")
+    public ResponseEntity<Map<String, String>> resetGame(
+            @PathVariable String roomCode,
+            @RequestBody(required = false) Map<String, Object> body) {
+
+        GameSession session = sessionRepo.findByRoomCode(roomCode).orElse(null);
+        if (session == null)
+            return ResponseEntity.badRequest().body(Map.of("error", "Room not found"));
+
+        // Clear in-memory game state
+        gameStateService.clearState(roomCode);
+
+        // Reset session status back to WAITING so start can be called again
+        session.setStatus(GameSession.GameStatus.WAITING);
+        sessionRepo.save(session);
+
+        // Notify all clients to return to lobby
+        messagingTemplate.convertAndSend("/topic/lobby/" + roomCode, Map.of(
+            "type", "GAME_RESET"
+        ));
+
+        log.info("Game reset: room={}", roomCode);
+        return ResponseEntity.ok(Map.of("status", "reset"));
+    }
+
     @PostMapping("/{roomCode}/ability")
     public ResponseEntity<Map<String, String>> useAbility(
             @PathVariable String roomCode,
@@ -167,6 +192,20 @@ public class GameController {
         return ResponseEntity.ok(Map.of("status", "ok"));
     }
 
+    @PostMapping("/{roomCode}/chat")
+    public ResponseEntity<Map<String, String>> chatMessage(
+            @PathVariable String roomCode,
+            @RequestBody Map<String, String> body) {
+        String playerName = body.get("playerName");
+        String text       = body.get("text");
+        if (playerName == null || text == null || text.isBlank())
+            return ResponseEntity.badRequest().body(Map.of("error", "Invalid message"));
+        gameStateService.trackMessage(roomCode, playerName);
+        messagingTemplate.convertAndSend("/topic/game/" + roomCode + "/chat", Map.of(
+            "playerName", playerName, "text", text));
+        return ResponseEntity.ok(Map.of("status", "sent"));
+    }
+
     @PostMapping("/{roomCode}/accuse")
     public ResponseEntity<Map<String, String>> accuse(
             @PathVariable String roomCode,
@@ -180,7 +219,6 @@ public class GameController {
         var state = gameStateService.getState(roomCode);
         if (state == null) return ResponseEntity.badRequest().body(Map.of("error", "Room not found"));
 
-        // Track accusation stats
         gameStateService.trackAccusation(roomCode, accuserName, targetName);
 
         messagingTemplate.convertAndSend("/topic/game/" + roomCode + "/chat", Map.of(
@@ -238,7 +276,6 @@ public class GameController {
                                 state.theme, state.allPlayers,
                                 elim.traitorName(), elim.role(),
                                 elim.winner(), elim.eliminationOrder());
-                        // Bundle stats into CASE_FILE event
                         List<Map<String, Object>> stats = gameStateService.buildStats(roomCode);
                         messagingTemplate.convertAndSend("/topic/game/" + roomCode, Map.of(
                             "type",   "CASE_FILE",
@@ -251,21 +288,6 @@ public class GameController {
             }
         }
         return ResponseEntity.ok(Map.of("status", "vote_cast"));
-    }
-
-    @PostMapping("/{roomCode}/chat")
-    public ResponseEntity<Map<String, String>> chatMessage(
-            @PathVariable String roomCode,
-            @RequestBody Map<String, String> body) {
-        String playerName = body.get("playerName");
-        String text       = body.get("text");
-        if (playerName == null || text == null || text.isBlank())
-            return ResponseEntity.badRequest().body(Map.of("error", "Invalid message"));
-        // Track message stat
-        gameStateService.trackMessage(roomCode, playerName);
-        messagingTemplate.convertAndSend("/topic/game/" + roomCode + "/chat", Map.of(
-            "playerName", playerName, "text", text));
-        return ResponseEntity.ok(Map.of("status", "sent"));
     }
 
     @PostMapping("/{roomCode}/spirit")
