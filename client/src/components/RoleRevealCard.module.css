@@ -41,7 +41,7 @@
 }
 
 .label {
-  font-size:10px; letter-spacing:5px; color:#444; text-transform:uppercase; font-weight:700;
+  font-size:10px; letter-spacing:5px; color:#777; text-transform:uppercase; font-weight:700;
 }
 
 .cardScene {
@@ -74,7 +74,7 @@
   background: repeating-linear-gradient(45deg,transparent,transparent 12px,rgba(255,255,255,0.025) 12px,rgba(255,255,255,0.025) 24px);
 }
 
-.tapHint { font-size:11px; letter-spacing:5px; color:#333; text-transform:uppercase; z-index:1; }
+.tapHint { font-size:11px; letter-spacing:5px; color:#666; text-transform:uppercase; z-index:1; }
 .tapIcon { font-size:28px; z-index:1; opacity:0.4; }
 
 .back {
@@ -127,11 +127,11 @@
   color: var(--accent, #7b2d8b); text-transform:uppercase; line-height:1;
 }
 
-/* ---- FLAVOR TEXT — the new lore line ---- */
+/* ---- FLAVOR TEXT ---- */
 .flavorText {
   font-size: 12px;
   font-style: italic;
-  color: #7a6a3a;
+  color: #a09060;
   line-height: 1.7;
   padding-left: 10px;
   border-left: 2px solid color-mix(in srgb, var(--accent, #7b2d8b) 40%, transparent);
@@ -143,8 +143,8 @@
 .cursorHide { opacity: 0; }
 
 .section { display:flex; flex-direction:column; gap:5px; animation:fadeSlideUp 0.3s ease; }
-.sectionLabel { font-size:9px; letter-spacing:3px; color:#555; text-transform:uppercase; font-weight:700; }
-.once { color:#333; font-size:8px; letter-spacing:2px; margin-left:6px; }
+.sectionLabel { font-size:9px; letter-spacing:3px; color:#888; text-transform:uppercase; font-weight:700; }
+.once { color:#666; font-size:8px; letter-spacing:2px; margin-left:6px; }
 .sectionText { font-size:13px; color:#ccc; line-height:1.6; }
 
 .particleWrap {
@@ -169,7 +169,7 @@
 }
 .readyBtn:hover { background:var(--accent, #7b2d8b); color:#000; box-shadow: 0 0 30px color-mix(in srgb, var(--accent, #7b2d8b) 50%, transparent); }
 
-.timer { font-size:11px; color:#333; letter-spacing:3px; text-transform:uppercase; }
+.timer { font-size:11px; color:#666; letter-spacing:3px; text-transform:uppercase; }
 
 @media (max-width: 480px) {
   .cardScene { width: 280px; min-height: 400px; }
