@@ -20,9 +20,9 @@ function getRarity(roleName) {
 
 const RARITY_STYLES = {
   COMMON:    { color: '#888',    glow: 'none',                          label: 'COMMON' },
-  RARE:      { color: '#4a9eff', glow: '0 0 10px rgba(74,158,255,0.5)',  label: '\u2726 RARE' },
-  LEGENDARY: { color: '#f7b731', glow: '0 0 14px rgba(247,183,49,0.6)',  label: '\u2605 LEGENDARY' },
-  MYTHIC:    { color: '#c77dff', glow: '0 0 18px rgba(199,125,255,0.7)', label: '\u25c6 MYTHIC' },
+  RARE:      { color: '#4a9eff', glow: '0 0 10px rgba(74,158,255,0.5)',  label: '✦ RARE' },
+  LEGENDARY: { color: '#f7b731', glow: '0 0 14px rgba(247,183,49,0.6)',  label: '★ LEGENDARY' },
+  MYTHIC:    { color: '#c77dff', glow: '0 0 18px rgba(199,125,255,0.7)', label: '◆ MYTHIC' },
 }
 
 function useTypewriter(text, delay = 30, startNow = false) {
@@ -44,7 +44,7 @@ function useTypewriter(text, delay = 30, startNow = false) {
  * Step sequence:
  * 0 = pre-flip (tap to reveal)
  * 1 = role name types out
- * 2 = flavor text types out  ← NEW
+ * 2 = flavor text types out
  * 3 = win condition types out
  * 4 = ability types out
  * 5 = restriction types out
@@ -143,10 +143,10 @@ export default function RoleRevealCard({ roleName, alignment, flavorText, winCon
               </div>
             )}
 
-            {/* Step 2: Flavor text — NEW */}
+            {/* Step 2: Flavor text */}
             {step >= 2 && flavorText && (
               <div className={styles.flavorText}>
-                “{twFlavor}{step < 3 && <span className={styles.cursor}>|</span>}”
+                "{twFlavor}{step < 3 && <span className={styles.cursor}>|</span>}"
               </div>
             )}
 
@@ -189,7 +189,7 @@ export default function RoleRevealCard({ roleName, alignment, flavorText, winCon
           ? 'Others cannot see your role'
           : step < 6
           ? 'Reading your role...'
-          : '\ud83d\udd25 You\'re ready. Don\'t reveal your role.'}
+          : "🔥 You're ready. Don't reveal your role."}
       </div>
     </div>
   )

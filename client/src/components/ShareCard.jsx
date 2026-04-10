@@ -17,8 +17,8 @@ function loadHtml2Canvas() {
 }
 
 const ALIGNMENT_GRADIENTS = {
-  evil: { bg: 'linear-gradient(135deg, #1a0005 0%, #0d0010 60%, #080810 100%)', accent: '#e63946', label: '\u2620 ANTAGONIST' },
-  good: { bg: 'linear-gradient(135deg, #00101a 0%, #000d14 60%, #080810 100%)', accent: '#00b4d8', label: '\u2726 COOPERATOR' },
+  evil: { bg: 'linear-gradient(135deg, #1a0005 0%, #0d0010 60%, #080810 100%)', accent: '#e63946', label: '☠ ANTAGONIST' },
+  good: { bg: 'linear-gradient(135deg, #00101a 0%, #000d14 60%, #080810 100%)', accent: '#00b4d8', label: '✦ COOPERATOR' },
 }
 
 export default function ShareCard({ theme, caseFile, myRoleName, winner, myAlignment, roomCode }) {
@@ -28,7 +28,7 @@ export default function ShareCard({ theme, caseFile, myRoleName, winner, myAlign
 
   const alignData = ALIGNMENT_GRADIENTS[myAlignment] || ALIGNMENT_GRADIENTS.good
   const isWinner = winner === (myAlignment || 'good')
-  const winLabel = isWinner ? '\ud83c\udfc6 YOUR SIDE WON' : '\ud83d\udc80 ELIMINATED'
+  const winLabel = isWinner ? '🏆 YOUR SIDE WON' : '💀 ELIMINATED'
   const winColor = isWinner ? '#f7b731' : '#e63946'
 
   async function handleCapture() {
@@ -67,7 +67,7 @@ export default function ShareCard({ theme, caseFile, myRoleName, winner, myAlign
   }
 
   // Truncate caseFile for the card (max ~280 chars looks clean)
-  const previewText = caseFile?.length > 280 ? caseFile.slice(0, 277) + '\u2026' : caseFile
+  const previewText = caseFile?.length > 280 ? caseFile.slice(0, 277) + '…' : caseFile
 
   return (
     <div className={styles.wrapper}>
@@ -101,7 +101,7 @@ export default function ShareCard({ theme, caseFile, myRoleName, winner, myAlign
 
         {/* Case file excerpt */}
         <div className={styles.caseSection}>
-          <div className={styles.caseHeading}>\u2014 CASE FILE \u2014</div>
+          <div className={styles.caseHeading}>— CASE FILE —</div>
           <div className={styles.caseText}>{previewText}</div>
         </div>
 
@@ -121,7 +121,7 @@ export default function ShareCard({ theme, caseFile, myRoleName, winner, myAlign
         disabled={capturing}
         style={{ '--accent': alignData.accent }}
       >
-        {capturing ? '\u23f3 Capturing...' : done ? '\u2705 Saved!' : '\ud83d\udcf8 Save & Share Result'}
+        {capturing ? '⏳ Capturing...' : done ? '✅ Saved!' : '📸 Save & Share Result'}
       </button>
     </div>
   )

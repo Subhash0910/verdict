@@ -38,13 +38,13 @@ export default function GameOverScreen({ result, myRole, caseFile, theme, roomCo
       {/* WIN / LOSE banner */}
       <div className={styles.resultBanner} style={{ '--accent': accentColor }}>
         {isWinner
-          ? <span className={styles.win}>\ud83c\udfc6 YOUR SIDE WON</span>
-          : <span className={styles.lose}>\ud83d\udc80 ELIMINATED</span>
+          ? <span className={styles.win}>🏆 YOUR SIDE WON</span>
+          : <span className={styles.lose}>💀 ELIMINATED</span>
         }
         <div className={styles.roleLine}>
           You played as <span style={{ color: accentColor }}>{myRole?.roleName || '???'}</span>
           <span className={`${styles.alignPill} ${myRole?.alignment === 'evil' ? styles.pillEvil : styles.pillGood}`}>
-            {myRole?.alignment === 'evil' ? '\u2620 Antagonist' : '\u2726 Cooperator'}
+            {myRole?.alignment === 'evil' ? '☠ Antagonist' : '✦ Cooperator'}
           </span>
         </div>
       </div>
@@ -55,14 +55,14 @@ export default function GameOverScreen({ result, myRole, caseFile, theme, roomCo
           className={`${styles.tab} ${activeTab === 'case' ? styles.tabActive : ''}`}
           onClick={() => setActiveTab('case')}
         >
-          \uD83D\uDDC2 Case File
+          🗂 Case File
         </button>
         {stats && stats.length > 0 && (
           <button
             className={`${styles.tab} ${activeTab === 'stats' ? styles.tabActive : ''}`}
             onClick={() => setActiveTab('stats')}
           >
-            \uD83D\uDCCA Stats
+            📊 Stats
           </button>
         )}
       </div>
@@ -102,7 +102,7 @@ export default function GameOverScreen({ result, myRole, caseFile, theme, roomCo
       )}
 
       <button className={styles.playAgainBtn} onClick={onPlayAgain}>
-        \ud83d\udd01 Play Again
+        🔁 Play Again
       </button>
     </div>
   )

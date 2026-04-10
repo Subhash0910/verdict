@@ -15,7 +15,7 @@
 .header { text-align: center; margin-bottom: 20px; }
 .title {
   font-size: 11px; letter-spacing: 6px; font-weight: 800;
-  color: #555; text-transform: uppercase;
+  color: #888; text-transform: uppercase;
 }
 .subtitle { font-size: 13px; color: #888; margin-top: 6px; }
 
@@ -33,10 +33,10 @@
   border-color: rgba(230,57,70,0.4);
   box-shadow: 0 0 30px rgba(230,57,70,0.15);
 }
-.villainLabel { font-size: 8px; letter-spacing: 5px; color: #555; text-transform: uppercase; }
+.villainLabel { font-size: 8px; letter-spacing: 5px; color: #888; text-transform: uppercase; }
 .villainName  { font-size: 22px; font-weight: 900; letter-spacing: 3px; color: #e63946; text-transform: uppercase; }
-.villainRole  { font-size: 10px; letter-spacing: 3px; color: #883040; text-transform: uppercase; }
-.villainOutcome { font-size: 12px; color: #666; margin-top: 4px; }
+.villainRole  { font-size: 10px; letter-spacing: 3px; color: #cc6070; text-transform: uppercase; }
+.villainOutcome { font-size: 12px; color: #999; margin-top: 4px; }
 
 /* Grid */
 .grid { display: flex; flex-direction: column; gap: 12px; }
@@ -67,7 +67,7 @@
 
 .rank {
   position: absolute; top: 12px; right: 14px;
-  font-size: 10px; letter-spacing: 2px; color: #2a2a3e;
+  font-size: 10px; letter-spacing: 2px; color: #555;
   font-weight: 800;
 }
 .topCard .rank { color: #f7b731; }
@@ -78,19 +78,19 @@
   width: 36px; height: 36px; border-radius: 50%;
   background: #12121e; border: 1px solid #1e1e30;
   display: flex; align-items: center; justify-content: center;
-  font-size: 14px; font-weight: 800; color: #555;
+  font-size: 14px; font-weight: 800; color: #888;
   flex-shrink: 0;
 }
 .nameBlock { display: flex; flex-direction: column; gap: 3px; flex: 1; }
 .playerName { font-size: 14px; font-weight: 700; color: #ddd; letter-spacing: 1px; }
 .youTag { font-size: 10px; color: #00b4d8; font-weight: 400; letter-spacing: 0; }
 .roleTag { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; font-weight: 700; }
-.roleGood { color: #005f70; }
-.roleEvil { color: #883040; }
+.roleGood { color: #00b4d8; }
+.roleEvil { color: #e63946; }
 
 .outcome { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; font-weight: 700; }
-.survived  { color: #1a5a2a; }
-.eliminated { color: #5a1a1a; }
+.survived  { color: #2d8b45; }
+.eliminated { color: #e63946; }
 
 /* Stat row */
 .statRow {
@@ -99,11 +99,11 @@
 }
 .stat { display: flex; flex-direction: column; align-items: center; gap: 3px; }
 .statNum { font-size: 20px; font-weight: 900; color: #ccc; letter-spacing: 1px; }
-.statLabel { font-size: 8px; letter-spacing: 2px; color: #333; text-transform: uppercase; }
+.statLabel { font-size: 8px; letter-spacing: 2px; color: #666; text-transform: uppercase; }
 
 /* Trust bar */
 .trustRow { display: flex; flex-direction: column; gap: 5px; }
-.trustLabel { font-size: 8px; letter-spacing: 3px; color: #2a2a3e; text-transform: uppercase; }
+.trustLabel { font-size: 8px; letter-spacing: 3px; color: #666; text-transform: uppercase; }
 .trustBarBg {
   height: 6px; background: #0e0e1c; border-radius: 3px;
   position: relative; overflow: hidden;
@@ -112,7 +112,7 @@
 .trustBarFill { height: 100%; border-radius: 3px; min-width: 2px; }
 .trustNum {
   position: absolute; right: 0;
-  font-size: 9px; color: #333; font-weight: 700;
+  font-size: 9px; color: #777; font-weight: 700;
   transform: translateX(0); padding-right: 2px;
 }
 
@@ -122,12 +122,12 @@
   font-size: 9px; letter-spacing: 1px; padding: 3px 10px;
   background: rgba(255,255,255,0.04);
   border: 1px solid #1e1e30; border-radius: 20px;
-  color: #444; text-transform: uppercase;
+  color: #888; text-transform: uppercase;
 }
 
 .empty {
   display: flex; align-items: center; justify-content: center;
-  padding: 40px; color: #333; font-size: 12px; letter-spacing: 3px;
+  padding: 40px; color: #666; font-size: 12px; letter-spacing: 3px;
   text-transform: uppercase;
 }
 

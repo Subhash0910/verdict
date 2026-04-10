@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react'
 import styles from './StatsScreen.module.css'
 
 const BADGES = [
-  { key: 'accusationsReceived', label: '\uD83D\uDD34 Most Accused',    desc: 'accusations received' },
-  { key: 'accusationsMade',     label: '\uD83E\uDDB9 Most Paranoid',   desc: 'accusations made' },
-  { key: 'votesReceived',       label: '\uD83D\uDDF3 Most Voted',      desc: 'votes received' },
-  { key: 'messagesSent',        label: '\uD83D\uDCAC Most Chatty',      desc: 'messages sent' },
+  { key: 'accusationsReceived', label: '🔴 Most Accused',    desc: 'accusations received' },
+  { key: 'accusationsMade',     label: '🦹 Most Paranoid',   desc: 'accusations made' },
+  { key: 'votesReceived',       label: '🗳 Most Voted',      desc: 'votes received' },
+  { key: 'messagesSent',        label: '💬 Most Chatty',     desc: 'messages sent' },
 ]
 
 function AnimatedNumber({ value, delay = 0 }) {
@@ -77,7 +77,7 @@ export default function StatsScreen({ stats = [], winner, myPlayerName }) {
       <div className={styles.header}>
         <div className={styles.title}>GAME STATS</div>
         <div className={styles.subtitle}>
-          {winner === 'good' ? '\u2726 Cooperators won this round' : '\u2620 Antagonist was victorious'}
+          {winner === 'good' ? '✦ Cooperators won this round' : '☠ Antagonist was victorious'}
         </div>
       </div>
 
@@ -88,7 +88,7 @@ export default function StatsScreen({ stats = [], winner, myPlayerName }) {
           <span className={styles.villainName}>{villain.playerName}</span>
           <span className={styles.villainRole}>{villain.roleName}</span>
           <span className={styles.villainOutcome}>
-            {villain.survived ? '\uD83D\uDE08 Survived' : '\uD83D\uDC80 Eliminated'}
+            {villain.survived ? '😈 Survived' : '💀 Eliminated'}
           </span>
         </div>
       )}
@@ -118,7 +118,7 @@ export default function StatsScreen({ stats = [], winner, myPlayerName }) {
                     {isMe && <span className={styles.youTag}> (you)</span>}
                   </span>
                   <span className={`${styles.roleTag} ${isVillain ? styles.roleEvil : styles.roleGood}`}>
-                    {isVillain ? '\u2620' : '\u2726'} {p.roleName}
+                    {isVillain ? '☠' : '✦'} {p.roleName}
                   </span>
                 </div>
                 <span className={`${styles.outcome} ${p.survived ? styles.survived : styles.eliminated}`}>
@@ -141,7 +141,7 @@ export default function StatsScreen({ stats = [], winner, myPlayerName }) {
                   <span className={styles.statLabel}>Messages</span>
                 </div>
                 <div className={styles.stat}>
-                  <span className={styles.statNum}>{p.abilityUsed ? '\u26a1' : '\u2014'}</span>
+                  <span className={styles.statNum}>{p.abilityUsed ? '⚡' : '—'}</span>
                   <span className={styles.statLabel}>Ability</span>
                 </div>
               </div>

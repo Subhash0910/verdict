@@ -264,10 +264,10 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
     <div className={styles.screen}>
       <SpectatorBanner spectatorCount={spectatorCount} />
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
-        <div style={{ color: '#333', letterSpacing: '4px', fontSize: '11px', textTransform: 'uppercase' }}>
+        <div style={{ color: '#888', letterSpacing: '4px', fontSize: '11px', textTransform: 'uppercase' }}>
           Waiting for game to start...
         </div>
-        <div style={{ color: '#1a1a2e', fontSize: '10px', letterSpacing: '2px' }}>You are in spectator mode</div>
+        <div style={{ color: '#666', fontSize: '10px', letterSpacing: '2px' }}>You are in spectator mode</div>
       </div>
     </div>
   )
@@ -276,8 +276,8 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
     <div className={styles.screen}>
       <SpectatorBanner spectatorCount={spectatorCount} />
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', marginTop: '60px' }}>
-        <div style={{ color: '#2a2a3e', letterSpacing: '5px', fontSize: '10px', textTransform: 'uppercase' }}>⚡ Ability Phase</div>
-        <div style={{ color: '#1a1a2e', letterSpacing: '3px', fontSize: '9px' }}>Players are using their abilities...</div>
+        <div style={{ color: '#888', letterSpacing: '5px', fontSize: '10px', textTransform: 'uppercase' }}>⚡ Ability Phase</div>
+        <div style={{ color: '#666', letterSpacing: '3px', fontSize: '9px' }}>Players are using their abilities...</div>
         <div style={{ color: '#7b2d8b', fontSize: '28px', fontWeight: 900, letterSpacing: '3px' }}>{timer > 0 ? timer : ''}</div>
       </div>
     </div>
@@ -285,7 +285,7 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
 
   if (phase === 'LOADING') return (
     <div className={styles.screen}>
-      <div style={{ color: '#333', letterSpacing: '4px', fontSize: '12px', textTransform: 'uppercase' }}>Loading...</div>
+      <div style={{ color: '#888', letterSpacing: '4px', fontSize: '12px', textTransform: 'uppercase' }}>Loading...</div>
     </div>
   )
 
@@ -306,7 +306,7 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
               onReady={() => setPhase('ABILITY')}
             />
           : <div className={styles.screen}>
-              <div style={{ color: '#444', letterSpacing: '3px', fontSize: '13px' }}>⏳ Waiting for your role...</div>
+              <div style={{ color: '#888', letterSpacing: '3px', fontSize: '13px' }}>⏳ Waiting for your role...</div>
             </div>
       )}
 
@@ -352,11 +352,11 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
       {phase === 'VOTING' && isSpectator && (
         <div className={styles.screen} style={{ flexDirection: 'column', gap: '16px' }}>
           <SpectatorBanner spectatorCount={spectatorCount} />
-          <div style={{ color: '#2a2a3e', letterSpacing: '5px', fontSize: '10px', textTransform: 'uppercase', marginTop: '60px' }}>
+          <div style={{ color: '#888', letterSpacing: '5px', fontSize: '10px', textTransform: 'uppercase', marginTop: '60px' }}>
             🗳 Voting in progress
           </div>
           {Object.entries(votes).map(([target, count]) => (
-            <div key={target} style={{ color: '#333', fontSize: '13px', letterSpacing: '2px' }}>
+            <div key={target} style={{ color: '#aaa', fontSize: '13px', letterSpacing: '2px' }}>
               {target}: <span style={{ color: '#e63946', fontWeight: 900 }}>{count}</span> vote{count !== 1 ? 's' : ''}
             </div>
           ))}
@@ -390,7 +390,7 @@ export default function GameScreen({ roomCode: rc, playerId: pid, playerName: pn
         <div style={{
           position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          zIndex: 9999, color: '#333', letterSpacing: '5px', fontSize: '12px', textTransform: 'uppercase'
+          zIndex: 9999, color: '#888', letterSpacing: '5px', fontSize: '12px', textTransform: 'uppercase'
         }}>
           Resetting...
         </div>
