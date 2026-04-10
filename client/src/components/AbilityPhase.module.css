@@ -50,13 +50,13 @@
   animation:fadeSlideUp 0.4s ease;
 }
 .roleLabel { font-size:22px; font-weight:900; letter-spacing:3px; color:var(--accent); text-transform:uppercase; }
-.abilityLabel { font-size:9px; letter-spacing:4px; color:#555; text-transform:uppercase; margin-top:8px; }
-.once { color:#333; font-size:8px; letter-spacing:2px; margin-left:6px; }
+.abilityLabel { font-size:9px; letter-spacing:4px; color:#888; text-transform:uppercase; margin-top:8px; }
+.once { color:#666; font-size:8px; letter-spacing:2px; margin-left:6px; }
 .abilityText { font-size:15px; color:#ddd; line-height:1.6; }
-.restrictionLabel { font-size:9px; letter-spacing:4px; color:#333; text-transform:uppercase; margin-top:4px; }
-.restrictionText { font-size:12px; color:#555; }
+.restrictionLabel { font-size:9px; letter-spacing:4px; color:#777; text-transform:uppercase; margin-top:4px; }
+.restrictionText { font-size:12px; color:#888; }
 
-.targetLabel { font-size:11px; letter-spacing:3px; color:#555; text-transform:uppercase; }
+.targetLabel { font-size:11px; letter-spacing:3px; color:#888; text-transform:uppercase; }
 
 .playerGrid {
   display:flex; flex-wrap:wrap; gap:10px; justify-content:center;
@@ -97,10 +97,10 @@
 
 .skipBtn {
   background:none; border:1px solid #2a2a3a; border-radius:8px;
-  color:#555; padding:10px 24px; font-size:12px;
+  color:#888; padding:10px 24px; font-size:12px;
   cursor:pointer; transition:all 0.2s; letter-spacing:1px;
 }
-.skipBtn:hover { border-color:#555; color:#999; }
+.skipBtn:hover { border-color:#888; color:#ccc; }
 
 /* Activating overlay */
 .activatingOverlay {
@@ -123,7 +123,7 @@
 }
 
 .activatingTarget {
-  font-size:11px; color:#555; letter-spacing:2px;
+  font-size:11px; color:#777; letter-spacing:2px;
 }
 
 /* Acted confirmation */
@@ -140,7 +140,7 @@
   font-size:20px; font-weight:800; color:#ccc; letter-spacing:3px; text-transform:uppercase;
 }
 .actedSub {
-  font-size:13px; color:#555; line-height:2;
+  font-size:13px; color:#888; line-height:2;
 }
 
 /* Mobile */
