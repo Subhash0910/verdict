@@ -117,7 +117,7 @@ export default function DiscussionPhase({
             {messages.length === 0 && (
               <div className={styles.emptyChat}>
                 The room is silent...<br />
-                <span style={{fontSize:'12px',color:'#2a2a3a'}}>Someone make a move.</span>
+                <span style={{fontSize:'12px',color:'#666'}}>Someone make a move.</span>
               </div>
             )}
             {messages.map((m, i) => (
