@@ -10,31 +10,27 @@ if ('serviceWorker' in navigator) {
     .then(registration => {
       initPwaIcons()
 
-      // When a new SW is found, wait for it to install then reload
+      // Only reload when a genuine NEW version is waiting (not first install).
+      // We check navigator.serviceWorker.controller — if it's null this is the
+      // very first SW install, no need to reload.
       registration.addEventListener('updatefound', () => {
         const newWorker = registration.installing
         if (!newWorker) return
-
         newWorker.addEventListener('statechange', () => {
-          // New SW installed and ready — if there's already a controller
-          // (i.e. this isn't the very first load), reload to get fresh files
-          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            console.log('[SW] New version available — reloading...')
+          if (
+            newWorker.state === 'installed' &&
+            navigator.serviceWorker.controller
+          ) {
+            // A real update is ready — show a toast or just reload once
+            console.log('[SW] New version ready — reloading once for fresh cache')
             window.location.reload()
           }
         })
       })
     })
-    .catch(err => console.warn('SW registration failed:', err))
-
-  // Also handle the case where the SW took over after a skipWaiting()
-  let reloading = false
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (reloading) return
-    reloading = true
-    console.log('[SW] Controller changed — reloading for fresh cache')
-    window.location.reload()
-  })
+    .catch(err => console.warn('[SW] Registration failed:', err))
+  // NOTE: No controllerchange listener — that was causing the infinite reload loop.
+  // The updatefound handler above is sufficient and safe.
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(

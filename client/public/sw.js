@@ -1,26 +1,27 @@
 /**
  * VERDICT Service Worker
- * CACHE_NAME is injected at build time via Vite define (__BUILD_TIME__).
- * Every new build/dev start gets a unique cache version — stale files are
- * automatically evicted without any manual unregister.
+ * In production, CACHE_NAME is unique per build via __BUILD_TIME__.
+ * In dev, it stays fixed as 'verdict-dev' so HMR restarts never
+ * trigger a new SW install + reload cycle.
  */
 
-// __BUILD_TIME__ is replaced by Vite at build time with a timestamp string.
-// Falls back to 'dev' if somehow not replaced.
 const CACHE_NAME = 'verdict-' + (typeof __BUILD_TIME__ !== 'undefined' ? __BUILD_TIME__ : 'dev')
 
 const APP_SHELL = ['/', '/index.html']
 
-// Install: pre-cache app shell, skip waiting immediately
+// Install: pre-cache app shell.
+// NO skipWaiting() here — if we skip waiting immediately, the browser fires
+// controllerchange on every single load which used to cause infinite reloads.
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => cache.addAll(APP_SHELL))
-      .then(() => self.skipWaiting())
+    // Intentionally NOT calling self.skipWaiting() here.
+    // The new SW will activate on next navigation naturally.
   )
 })
 
-// Activate: delete ALL old caches, claim clients immediately
+// Activate: delete ALL old caches, claim clients.
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys()
@@ -34,7 +35,7 @@ self.addEventListener('activate', event => {
   )
 })
 
-// Fetch: network-first for API + WS, cache-first for static assets
+// Fetch: network-first for API + WS, cache-first for static assets.
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url)
 
