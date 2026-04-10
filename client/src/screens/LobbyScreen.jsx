@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import axios from 'axios'
 import useLobbySocket from '../hooks/useLobbySocket'
 import LobbyGame from '../phaser/LobbyGame'
@@ -11,12 +11,20 @@ const MIN_PLAYERS = 4
 
 export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart }) {
   const { players, spectatorCount, connected, gameEvent } = useLobbySocket(roomData?.roomCode, playerData?.playerId)
-  const [starting, setStarting]       = useState(false)
-  const [startError, setStartError]   = useState('')
+  const [starting, setStarting]           = useState(false)
+  const [startError, setStartError]       = useState('')
   const [capturedEvent, setCapturedEvent] = useState(null)
-  const [copied, setCopied]           = useState(false)
-  const [showQR, setShowQR]           = useState(false)
-  const { isMuted, toggleMute }       = useSoundContext()
+  const [copied, setCopied]               = useState(false)
+  const [showQR, setShowQR]               = useState(false)
+  const { isMuted, toggleMute }           = useSoundContext()
+
+  // Refs to prevent multiple firings
+  const hasStarted    = useRef(false)   // guard: GAME_STARTING only fires once
+  const onGameStartRef = useRef(onGameStart)
+  const startTimerRef  = useRef(null)
+
+  // Keep ref in sync with latest prop without re-running the effect
+  useEffect(() => { onGameStartRef.current = onGameStart }, [onGameStart])
 
   const displayPlayers = players.length > 0
     ? players
@@ -28,15 +36,35 @@ export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart
 
   useEffect(() => {
     if (!gameEvent) return
+
     if (gameEvent.type === 'GAME_STARTING') {
+      // Guard: only ever run this once per lobby session
+      if (hasStarted.current) return
+      hasStarted.current = true
+
       setCapturedEvent(gameEvent)
       setStarting(true)
-      setTimeout(() => onGameStart(gameEvent.theme, gameEvent.synopsis), 6500)
+
+      // Clear any previous timer just in case
+      if (startTimerRef.current) clearTimeout(startTimerRef.current)
+
+      startTimerRef.current = setTimeout(() => {
+        onGameStartRef.current?.(gameEvent.theme, gameEvent.synopsis)
+      }, 6500)
     }
+
     if (gameEvent.type === 'GAME_RESET') {
+      // Reset everything including the guard so Play Again works
+      hasStarted.current = false
+      if (startTimerRef.current) clearTimeout(startTimerRef.current)
       setStarting(false)
       setCapturedEvent(null)
       setStartError('')
+    }
+
+    // Cleanup timer on unmount
+    return () => {
+      if (startTimerRef.current) clearTimeout(startTimerRef.current)
     }
   }, [gameEvent])
 
