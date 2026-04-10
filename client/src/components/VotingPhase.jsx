@@ -10,7 +10,7 @@ export default function VotingPhase({ players, votes, myPlayerId, nominatedPlaye
   const [confirming, setConfirming] = useState(null) // playerName being confirmed
   const sound = useSound()
   const allPlayers = players
-  const allVoted = Object.keys(votes).length >= (players.length + 1)
+  const allVoted = Object.keys(votes).length >= players.length
 
   // Sequential dramatic reveal when all voted
   useEffect(() => {
