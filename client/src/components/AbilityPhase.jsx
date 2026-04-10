@@ -95,7 +95,7 @@ export default function AbilityPhase({ myRole, players, timer, onUse, onSkip }) 
             <div className={styles.actedTitle}>Ability Deployed</div>
             <div className={styles.actedSub}>
               Results will surface in the discussion chat.<br />
-              <span style={{color:'#333'}}>Others are still taking actions...</span>
+              <span style={{color:'#666'}}>Others are still taking actions...</span>
             </div>
           </div>
         ) : null}
