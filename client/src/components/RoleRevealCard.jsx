@@ -50,7 +50,7 @@ function useTypewriter(text, delay = 30, startNow = false) {
  * 5 = restriction types out
  * 6 = ready button appears
  */
-export default function RoleRevealCard({ roleName, alignment, flavorText, winCondition, ability, restriction, onReady }) {
+export default function RoleRevealCard({ roleName, alignment, factionLabel, flavorText, winCondition, ability, restriction, onReady }) {
   const [step, setStep] = useState(0)
   const [showParticles, setShowParticles] = useState(false)
   const colors = ALIGNMENT_COLORS[alignment] || ALIGNMENT_COLORS.good
@@ -133,7 +133,7 @@ export default function RoleRevealCard({ roleName, alignment, flavorText, winCon
 
             {/* Alignment badge */}
             <div className={`${styles.alignBadge} ${styles[alignment]}`}>
-              {alignment === 'evil' ? '☠ ANTAGONIST' : '✦ COOPERATOR'}
+              {factionLabel || (alignment === 'evil' ? 'Antagonist' : 'Cooperator')}
             </div>
 
             {/* Step 1: Role name */}

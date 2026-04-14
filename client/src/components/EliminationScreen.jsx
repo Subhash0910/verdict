@@ -4,83 +4,100 @@ import { useSound } from '../hooks/useSound'
 
 export default function EliminationScreen({ elimination, onContinue }) {
   const [step, setStep] = useState(0)
-  // 0=black, 1=spotlight, 2=role slam, 3=ai line, 4=continue
   const sound = useSound()
   const timerRef = useRef(null)
 
   useEffect(() => {
     sound.playBoom()
-    // step 0: 2s black silence
     timerRef.current = setTimeout(() => {
-      setStep(1) // spotlight
+      setStep(1)
       setTimeout(() => {
         sound.playSlam()
-        setStep(2) // role card slams up
+        setStep(2)
         setTimeout(() => {
           sound.playDing()
-          setStep(3) // AI line
-          setTimeout(() => setStep(4), 2500)
-        }, 1200)
-      }, 1500)
-    }, 2000)
-    return () => clearTimeout(timerRef.current)
-  }, [])
+          setStep(3)
+          setTimeout(() => setStep(4), 2200)
+        }, 900)
+      }, 1000)
+    }, 900)
 
+    return () => clearTimeout(timerRef.current)
+  }, [sound])
+
+  const survivedTrial = Boolean(elimination?.survivedTrial)
   const isEvil = elimination?.alignment === 'evil'
-  const accentColor = isEvil ? '#e63946' : '#00b4d8'
-  const initial = elimination?.eliminatedId?.[0]?.toUpperCase() ?? '?'
+  const accentColor = survivedTrial
+    ? 'var(--theme-accent-good)'
+    : isEvil
+      ? 'var(--theme-accent-evil)'
+      : 'var(--theme-accent-good)'
+
+  const focusName = elimination?.eliminatedId || elimination?.accusedPlayer || 'Unknown'
+  const initial = focusName?.[0]?.toUpperCase() ?? '?'
 
   return (
     <div className={styles.overlay}>
-      {/* Step 0: pure black */}
       {step === 0 && <div className={styles.blackScreen} />}
 
-      {/* Step 1+: spotlight */}
       {step >= 1 && (
         <div className={styles.spotlight}>
           <div className={styles.avatarRing} style={{ '--color': accentColor }}>
             <div className={styles.avatar}>{initial}</div>
           </div>
-          <div className={styles.playerName}>{elimination?.eliminatedId}</div>
+          <div className={styles.playerName}>{focusName}</div>
         </div>
       )}
 
-      {/* Step 2+: role card slams up */}
       {step >= 2 && (
         <div className={styles.roleCard} style={{ '--color': accentColor }}>
-          <div className={styles.wasLabel}>WAS THE</div>
-          <div className={styles.roleName}>{elimination?.eliminatedRole?.toUpperCase()}</div>
-          <div className={styles.alignment}>
-            {isEvil ? '☠️ ANTAGONIST' : '✦ COOPERATOR'}
-          </div>
+          {survivedTrial ? (
+            <>
+              <div className={styles.wasLabel}>TRIBUNAL RESULT</div>
+              <div className={styles.roleName}>SPARED</div>
+              <div className={styles.alignment}>
+                {elimination?.spareVotes} spare / {elimination?.condemnVotes} condemn
+              </div>
+            </>
+          ) : (
+            <>
+              <div className={styles.wasLabel}>WAS THE</div>
+              <div className={styles.roleName}>{elimination?.eliminatedRole?.toUpperCase()}</div>
+              <div className={styles.alignment}>
+                {isEvil ? 'ANTAGONIST EXPOSED' : 'COOPERATOR LOST'}
+              </div>
+            </>
+          )}
         </div>
       )}
 
-      {/* Step 3+: particle burst effect + AI line */}
       {step >= 3 && (
         <div className={styles.particles}>
-          {[...Array(20)].map((_, i) => (
-            <div key={i} className={styles.particle}
+          {[...Array(20)].map((_, index) => (
+            <div
+              key={index}
+              className={styles.particle}
               style={{
-                '--angle': `${(i / 20) * 360}deg`,
+                '--angle': `${(index / 20) * 360}deg`,
                 '--color': accentColor,
-                '--delay': `${i * 30}ms`
+                '--delay': `${index * 30}ms`,
               }}
             />
           ))}
         </div>
       )}
 
-      {/* Step 4: continue */}
       {step >= 4 && (
         <div className={styles.continueArea}>
           {elimination?.gameOver ? (
-            <div className={styles.gameOverTag}>GAME OVER</div>
+            <div className={styles.gameOverTag}>Case Closed</div>
           ) : (
-            <div className={styles.nextRound}>Round continues...</div>
+            <div className={styles.nextRound}>
+              {survivedTrial ? 'The room carries the risk into the next round.' : 'The next round begins.'}
+            </div>
           )}
           <button className={styles.continueBtn} onClick={onContinue}>
-            {elimination?.gameOver ? 'See Case File →' : 'Next Round →'}
+            {elimination?.gameOver ? 'See Case File ->' : 'Next Round ->'}
           </button>
         </div>
       )}

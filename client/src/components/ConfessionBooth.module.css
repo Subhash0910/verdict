@@ -1,94 +1,217 @@
 @keyframes promptSlam {
-  0%   { transform:scale(0.7) translateY(40px); opacity:0 }
-  60%  { transform:scale(1.05) translateY(-4px); opacity:1 }
-  100% { transform:scale(1) translateY(0); opacity:1 }
+  0% { transform: scale(0.7) translateY(40px); opacity: 0; }
+  60% { transform: scale(1.05) translateY(-4px); opacity: 1; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
 }
+
 @keyframes overlayIn {
-  from { background:rgba(0,0,0,0) }
-  to   { background:rgba(0,0,0,0.92) }
+  from { background: color-mix(in srgb, black 0%, transparent); }
+  to { background: color-mix(in srgb, black 92%, transparent); }
 }
+
 @keyframes chipPulse {
-  0%,100% { box-shadow:0 0 0 0 rgba(230,57,70,0.4) }
-  50%      { box-shadow:0 0 0 6px rgba(230,57,70,0) }
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--theme-accent-evil) 34%, transparent); }
+  50% { box-shadow: 0 0 0 6px transparent; }
 }
 
-/* Demand panel */
 .demandWrap {
-  padding:10px 14px;
-  background:#0d0d1a;
-  border-top:1px solid #1a1a2e;
-  display:flex; flex-direction:column; gap:8px;
-}
-.demandTitle {
-  font-size:9px; letter-spacing:4px; color:#c9a227;
-  text-transform:uppercase; font-weight:700;
-}
-.targetRow { display:flex; flex-wrap:wrap; gap:6px; }
-.targetChip {
-  background:#111120; border:1px solid #2a2a3a;
-  border-radius:20px; padding:4px 12px;
-  color:#888; font-size:12px; cursor:pointer;
-  transition:all 0.2s;
-}
-.targetChip:hover { border-color:#c9a227; color:#fff; }
-.targetChip.chipSelected {
-  border-color:#c9a227; background:rgba(201,162,39,0.12);
-  color:#c9a227; animation:chipPulse 1s ease infinite;
-}
-.questionRow { display:flex; gap:8px; }
-.questionInput {
-  flex:1; background:#111120; border:1px solid #2a2a3a;
-  border-radius:8px; padding:8px 12px; color:#fff;
-  font-size:13px; outline:none; transition:border 0.2s;
-}
-.questionInput:focus { border-color:#c9a227; }
-.demandBtn {
-  background:#c9a227; border:none; border-radius:8px;
-  padding:8px 16px; color:#000; font-size:13px;
-  font-weight:800; cursor:pointer; transition:opacity 0.2s;
-  letter-spacing:1px;
-}
-.demandBtn:disabled { opacity:0.3; cursor:not-allowed; }
-.usedBadge {
-  font-size:10px; color:#555; letter-spacing:2px;
-  text-align:center; padding:8px;
-  border-top:1px solid #1a1a2e;
+  padding: 12px 14px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--theme-bg-secondary) 92%, var(--dossier-folder-dark)), color-mix(in srgb, var(--theme-bg-primary) 92%, black));
+  border-top: 1px solid var(--theme-border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-/* Full-screen prompt overlay */
+.demandTitle {
+  font-size: 9px;
+  letter-spacing: 4px;
+  color: var(--dossier-tag);
+  text-transform: uppercase;
+  font-weight: 700;
+  font-family: var(--theme-font-mono);
+}
+
+.targetRow { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.targetChip {
+  background: color-mix(in srgb, var(--dossier-folder) 84%, var(--theme-bg-card));
+  border: 1px solid var(--theme-border);
+  border-radius: 20px;
+  padding: 5px 12px;
+  color: var(--dossier-ink);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: var(--theme-font-typewriter);
+  text-transform: uppercase;
+}
+
+.targetChip:hover { border-color: var(--dossier-tag); }
+
+.targetChip.chipSelected {
+  border-color: var(--dossier-tag);
+  background: color-mix(in srgb, var(--dossier-tag) 12%, var(--dossier-folder));
+  color: color-mix(in srgb, var(--dossier-tag) 78%, var(--dossier-ink));
+  animation: chipPulse 1s ease infinite;
+}
+
+.questionRow { display: flex; gap: 8px; }
+
+.questionInput {
+  flex: 1;
+  background: color-mix(in srgb, var(--dossier-folder) 88%, var(--theme-bg-card));
+  border: 1px solid var(--theme-border);
+  border-radius: 8px;
+  padding: 9px 12px;
+  color: var(--dossier-ink);
+  font-size: 13px;
+  outline: none;
+  transition: border 0.2s;
+  font-family: var(--theme-font-typewriter);
+}
+
+.questionInput:focus { border-color: var(--dossier-tag); }
+
+.demandBtn {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--dossier-tag) 88%, var(--theme-bg-secondary)), var(--theme-accent-evil));
+  border: 1px solid color-mix(in srgb, var(--dossier-tag) 44%, var(--theme-border));
+  border-radius: 8px;
+  padding: 8px 16px;
+  color: var(--theme-text-primary);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-family: var(--theme-font-mono);
+}
+
+.demandBtn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.usedBadge {
+  font-size: 10px;
+  color: var(--theme-text-muted);
+  letter-spacing: 2px;
+  text-align: center;
+  padding: 8px;
+  border-top: 1px solid var(--theme-border);
+  text-transform: uppercase;
+  font-family: var(--theme-font-mono);
+}
+
 .promptOverlay {
-  position:fixed; inset:0; z-index:9999;
-  display:flex; align-items:center; justify-content:center;
-  background:rgba(0,0,0,0.92);
-  animation:overlayIn 0.2s ease;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, black 92%, transparent);
+  animation: overlayIn 0.2s ease;
 }
+
 .promptCard {
-  background:#0f0f1c;
-  border:2px solid #c9a227;
-  border-radius:20px; padding:40px 36px;
-  max-width:460px; width:90%;
-  display:flex; flex-direction:column; gap:16px;
-  text-align:center;
-  animation:promptSlam 0.4s cubic-bezier(0.34,1.56,0.64,1);
-  box-shadow:0 0 60px rgba(201,162,39,0.3);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--dossier-folder) 94%, var(--theme-bg-card)), color-mix(in srgb, var(--dossier-folder-dark) 88%, var(--theme-bg-secondary)));
+  border: 2px solid var(--dossier-tag);
+  border-radius: 20px;
+  padding: 40px 36px;
+  max-width: 460px;
+  width: 90%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  text-align: center;
+  animation: promptSlam 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 0 60px color-mix(in srgb, var(--dossier-tag) 20%, transparent);
+  position: relative;
 }
+
+.promptCard::before {
+  content: "INTERROGATION";
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  font-size: 8px;
+  letter-spacing: 3px;
+  color: color-mix(in srgb, var(--theme-text-muted) 80%, var(--dossier-ink));
+  font-family: var(--theme-font-mono);
+}
+
 .promptHeader {
-  font-size:11px; letter-spacing:4px; color:#c9a227;
-  text-transform:uppercase; font-weight:800;
+  font-size: 11px;
+  letter-spacing: 4px;
+  color: var(--dossier-tag);
+  text-transform: uppercase;
+  font-weight: 800;
+  font-family: var(--theme-font-mono);
 }
-.promptAsker { font-size:13px; color:#888; }
+
+.promptAsker {
+  font-size: 13px;
+  color: var(--theme-text-muted);
+  text-transform: uppercase;
+  font-family: var(--theme-font-typewriter);
+}
+
 .promptQuestion {
-  font-size:22px; font-weight:800; color:#fff;
-  line-height:1.4;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--dossier-ink);
+  line-height: 1.4;
+  font-family: var(--theme-font-typewriter);
 }
-.promptSubtext { font-size:11px; color:#555; letter-spacing:1px; }
-.answerBtns { display:flex; gap:12px; margin-top:8px; }
+
+.promptSubtext {
+  font-size: 11px;
+  color: var(--theme-text-muted);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-family: var(--theme-font-mono);
+}
+
+.answerBtns {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
 .answerBtn {
-  flex:1; padding:16px; border-radius:12px;
-  border:none; font-size:18px; font-weight:900;
-  cursor:pointer; transition:all 0.15s;
-  letter-spacing:2px;
+  flex: 1;
+  padding: 16px;
+  border-radius: 12px;
+  border: none;
+  font-size: 16px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  font-family: var(--theme-font-mono);
 }
-.answerBtn:hover { transform:scale(1.04); }
-.yes { background:#1a3a2a; color:#00e676; border:2px solid #00e676; }
-.no  { background:#3a1a1a; color:#e63946; border:2px solid #e63946; }
+
+.answerBtn:hover { transform: scale(1.04); }
+
+.yes {
+  background: color-mix(in srgb, var(--theme-accent-good) 24%, var(--theme-bg-secondary));
+  color: var(--theme-accent-good);
+  border: 2px solid var(--theme-accent-good);
+}
+
+.no {
+  background: color-mix(in srgb, var(--theme-accent-evil) 24%, var(--theme-bg-secondary));
+  color: var(--theme-accent-evil);
+  border: 2px solid var(--theme-accent-evil);
+}
+
+@media (max-width: 768px) {
+  .promptCard { width: 92%; padding: 30px 22px; }
+  .questionRow { flex-direction: column; }
+  .demandBtn { width: 100%; }
+}
+
+@media (max-width: 480px) {
+  .answerBtns { flex-direction: column; }
+  .promptQuestion { font-size: 18px; }
+}

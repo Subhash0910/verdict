@@ -40,10 +40,12 @@ if ('serviceWorker' in navigator) {
   }
 }
 
+const RootWrapper = import.meta.env.DEV ? React.Fragment : React.StrictMode
+
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
+  <RootWrapper>
     <SoundProvider>
       <App />
     </SoundProvider>
-  </React.StrictMode>
+  </RootWrapper>
 )

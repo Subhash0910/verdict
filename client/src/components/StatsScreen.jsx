@@ -1,39 +1,38 @@
-import React, { useState, useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import styles from './StatsScreen.module.css'
-
-const BADGES = [
-  { key: 'accusationsReceived', label: '🔴 Most Accused',    desc: 'accusations received' },
-  { key: 'accusationsMade',     label: '🦹 Most Paranoid',   desc: 'accusations made' },
-  { key: 'votesReceived',       label: '🗳 Most Voted',      desc: 'votes received' },
-  { key: 'messagesSent',        label: '💬 Most Chatty',     desc: 'messages sent' },
-]
 
 function AnimatedNumber({ value, delay = 0 }) {
   const [displayed, setDisplayed] = useState(0)
+
   useEffect(() => {
-    if (!value) return
-    const t = setTimeout(() => {
-      let start = 0
-      const step = Math.ceil(value / 20)
-      const iv = setInterval(() => {
-        start = Math.min(start + step, value)
-        setDisplayed(start)
-        if (start >= value) clearInterval(iv)
-      }, 40)
-      return () => clearInterval(iv)
+    const timeout = setTimeout(() => {
+      if (!value) return
+      let current = 0
+      const step = Math.max(1, Math.ceil(value / 20))
+      const interval = setInterval(() => {
+        current = Math.min(current + step, value)
+        setDisplayed(current)
+        if (current >= value) clearInterval(interval)
+      }, 36)
+      return () => clearInterval(interval)
     }, delay)
-    return () => clearTimeout(t)
-  }, [value, delay])
+
+    return () => clearTimeout(timeout)
+  }, [delay, value])
+
   return <span>{displayed}</span>
 }
 
 function TrustBar({ value }) {
   const [width, setWidth] = useState(0)
+
   useEffect(() => {
-    const t = setTimeout(() => setWidth(value), 200)
-    return () => clearTimeout(t)
+    const timeout = setTimeout(() => setWidth(value), 180)
+    return () => clearTimeout(timeout)
   }, [value])
-  const color = value >= 60 ? '#00b4d8' : value >= 35 ? '#f7b731' : '#e63946'
+
+  const color = value >= 60 ? 'var(--theme-accent-good)' : value >= 35 ? '#f7b731' : 'var(--theme-accent-evil)'
+
   return (
     <div className={styles.trustBarBg}>
       <div
@@ -49,113 +48,97 @@ export default function StatsScreen({ stats = [], winner, myPlayerName }) {
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
-    const t = setTimeout(() => setVisible(true), 100)
-    return () => clearTimeout(t)
+    const timeout = setTimeout(() => setVisible(true), 100)
+    return () => clearTimeout(timeout)
   }, [])
 
   if (!stats.length) {
     return (
       <div className={styles.empty}>
-        <span>No stats available for this game.</span>
+        <span>No receipts survived this case.</span>
       </div>
     )
   }
 
-  // Find badge winners
-  const badgeMap = {}
-  BADGES.forEach(b => {
-    const top = [...stats].sort((x, y) => (y[b.key] || 0) - (x[b.key] || 0))[0]
-    if (top && (top[b.key] || 0) > 0) badgeMap[top.playerName] = badgeMap[top.playerName] || []
-    if (top && (top[b.key] || 0) > 0) badgeMap[top.playerName].push(b.label)
-  })
-
-  // Find the villain (evil alignment)
-  const villain = stats.find(s => s.alignment === 'evil')
+  const villain = stats.find((player) => player.alignment === 'evil')
 
   return (
     <div className={`${styles.container} ${visible ? styles.visible : ''}`}>
       <div className={styles.header}>
-        <div className={styles.title}>GAME STATS</div>
+        <div className={styles.title}>Case Receipts</div>
         <div className={styles.subtitle}>
-          {winner === 'good' ? '✦ Cooperators won this round' : '☠ Antagonist was victorious'}
+          {winner === 'good' ? 'Cooperators closed the case.' : 'The antagonist escaped the room.'}
         </div>
       </div>
 
-      {/* Villain reveal banner */}
       {villain && (
         <div className={`${styles.villainBanner} ${winner === 'evil' ? styles.villainWon : ''}`}>
-          <span className={styles.villainLabel}>THE ANTAGONIST WAS</span>
+          <span className={styles.villainLabel}>Hidden Antagonist</span>
           <span className={styles.villainName}>{villain.playerName}</span>
           <span className={styles.villainRole}>{villain.roleName}</span>
-          <span className={styles.villainOutcome}>
-            {villain.survived ? '😈 Survived' : '💀 Eliminated'}
-          </span>
+          <span className={styles.villainOutcome}>{villain.survived ? 'Stayed standing' : 'Taken down in tribunal'}</span>
         </div>
       )}
 
-      {/* Player stat cards */}
       <div className={styles.grid}>
-        {stats.map((p, i) => {
-          const isMe = p.playerName === myPlayerName
-          const isVillain = p.alignment === 'evil'
-          const myBadges = badgeMap[p.playerName] || []
+        {stats.map((player, index) => {
+          const isMe = player.playerName === myPlayerName
+          const isVillain = player.alignment === 'evil'
+          const receipts = player.receipts || []
 
           return (
             <div
-              key={p.playerName}
-              className={`${styles.card} ${isMe ? styles.myCard : ''} ${isVillain ? styles.villainCard : ''} ${i === 0 ? styles.topCard : ''}`}
-              style={{ animationDelay: `${i * 80}ms` }}
+              key={player.playerName}
+              className={`${styles.card} ${isMe ? styles.myCard : ''} ${isVillain ? styles.villainCard : ''} ${index === 0 ? styles.topCard : ''}`}
+              style={{ animationDelay: `${index * 80}ms` }}
             >
-              {/* Rank */}
-              <div className={styles.rank}>#{i + 1}</div>
+              <div className={styles.rank}>#{index + 1}</div>
 
-              {/* Name + role */}
               <div className={styles.nameRow}>
-                <span className={styles.avatar}>{p.playerName?.[0]?.toUpperCase()}</span>
+                <span className={styles.avatar}>{player.playerName?.[0]?.toUpperCase()}</span>
                 <div className={styles.nameBlock}>
                   <span className={styles.playerName}>
-                    {p.playerName}
+                    {player.playerName}
                     {isMe && <span className={styles.youTag}> (you)</span>}
                   </span>
                   <span className={`${styles.roleTag} ${isVillain ? styles.roleEvil : styles.roleGood}`}>
-                    {isVillain ? '☠' : '✦'} {p.roleName}
+                    {player.factionLabel || (isVillain ? 'Antagonist' : 'Cooperator')} / {player.roleName}
                   </span>
                 </div>
-                <span className={`${styles.outcome} ${p.survived ? styles.survived : styles.eliminated}`}>
-                  {p.survived ? 'Survived' : 'Eliminated'}
+                <span className={`${styles.outcome} ${player.survived ? styles.survived : styles.eliminated}`}>
+                  {player.survived ? 'Survived' : 'Eliminated'}
                 </span>
               </div>
 
-              {/* Stat row */}
               <div className={styles.statRow}>
                 <div className={styles.stat}>
-                  <span className={styles.statNum}><AnimatedNumber value={p.accusationsReceived || 0} delay={i * 80 + 200} /></span>
-                  <span className={styles.statLabel}>Accused</span>
+                  <span className={styles.statNum}><AnimatedNumber value={player.accusationsReceived || 0} delay={index * 80 + 180} /></span>
+                  <span className={styles.statLabel}>Suspected</span>
                 </div>
                 <div className={styles.stat}>
-                  <span className={styles.statNum}><AnimatedNumber value={p.votesReceived || 0} delay={i * 80 + 280} /></span>
-                  <span className={styles.statLabel}>Votes</span>
+                  <span className={styles.statNum}><AnimatedNumber value={player.votesReceived || 0} delay={index * 80 + 260} /></span>
+                  <span className={styles.statLabel}>Condemn</span>
                 </div>
                 <div className={styles.stat}>
-                  <span className={styles.statNum}><AnimatedNumber value={p.messagesSent || 0} delay={i * 80 + 360} /></span>
+                  <span className={styles.statNum}><AnimatedNumber value={player.messagesSent || 0} delay={index * 80 + 340} /></span>
                   <span className={styles.statLabel}>Messages</span>
                 </div>
                 <div className={styles.stat}>
-                  <span className={styles.statNum}>{p.abilityUsed ? '⚡' : '—'}</span>
-                  <span className={styles.statLabel}>Ability</span>
+                  <span className={styles.statNum}>{player.abilityUsed ? 'Yes' : 'No'}</span>
+                  <span className={styles.statLabel}>Power</span>
                 </div>
               </div>
 
-              {/* Trust bar */}
               <div className={styles.trustRow}>
-                <span className={styles.trustLabel}>FINAL TRUST</span>
-                <TrustBar value={p.finalTrust || 0} />
+                <span className={styles.trustLabel}>Final Trust</span>
+                <TrustBar value={player.finalTrust || 0} />
               </div>
 
-              {/* Achievement badges */}
-              {myBadges.length > 0 && (
+              {receipts.length > 0 && (
                 <div className={styles.badges}>
-                  {myBadges.map(b => <span key={b} className={styles.badge}>{b}</span>)}
+                  {receipts.map((receipt) => (
+                    <span key={receipt} className={styles.badge}>{receipt}</span>
+                  ))}
                 </div>
               )}
             </div>

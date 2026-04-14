@@ -31,7 +31,15 @@
   --theme-text-muted:    #888;
   --theme-glow-primary:  0 0 30px rgba(123,45,139,0.12);
   --theme-font:          'Segoe UI', system-ui, sans-serif;
+  --theme-font-typewriter: 'Courier New', 'Lucida Console', monospace;
+  --theme-font-mono: 'Courier New', 'Lucida Console', monospace;
   --theme-title-spacing: 4px;
+  --dossier-folder: color-mix(in srgb, var(--theme-text-secondary) 62%, #7b6a4b);
+  --dossier-folder-dark: color-mix(in srgb, var(--theme-border) 55%, #5a4e3b);
+  --dossier-ink: color-mix(in srgb, var(--text-primary) 82%, #281d12);
+  --dossier-shadow: color-mix(in srgb, var(--theme-bg-primary) 78%, #050505);
+  --dossier-stamp: color-mix(in srgb, var(--accent-red) 82%, #ff9c94);
+  --dossier-tag: color-mix(in srgb, var(--accent-cyan) 44%, #d9bd75);
 }
 
 * {

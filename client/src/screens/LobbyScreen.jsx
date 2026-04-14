@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import axios from 'axios'
 import useLobbySocket from '../hooks/useLobbySocket'
 import LobbyGame from '../phaser/LobbyGame'
@@ -11,20 +11,21 @@ const MIN_PLAYERS = 4
 
 export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart }) {
   const { players, spectatorCount, connected, gameEvent } = useLobbySocket(roomData?.roomCode, playerData?.playerId)
-  const [starting, setStarting]           = useState(false)
-  const [startError, setStartError]       = useState('')
+  const [starting, setStarting] = useState(false)
+  const [startPending, setStartPending] = useState(false)
+  const [startError, setStartError] = useState('')
   const [capturedEvent, setCapturedEvent] = useState(null)
-  const [copied, setCopied]               = useState(false)
-  const [showQR, setShowQR]               = useState(false)
-  const { isMuted, toggleMute }           = useSoundContext()
+  const [copied, setCopied] = useState(false)
+  const [showQR, setShowQR] = useState(false)
+  const { isMuted, toggleMute } = useSoundContext()
 
-  // Refs to prevent multiple firings
-  const hasStarted    = useRef(false)   // guard: GAME_STARTING only fires once
+  const hasStarted = useRef(false)
   const onGameStartRef = useRef(onGameStart)
-  const startTimerRef  = useRef(null)
+  const startTimerRef = useRef(null)
 
-  // Keep ref in sync with latest prop without re-running the effect
-  useEffect(() => { onGameStartRef.current = onGameStart }, [onGameStart])
+  useEffect(() => {
+    onGameStartRef.current = onGameStart
+  }, [onGameStart])
 
   const displayPlayers = players.length > 0
     ? players
@@ -38,42 +39,47 @@ export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart
     if (!gameEvent) return
 
     if (gameEvent.type === 'GAME_STARTING') {
-      // Guard: only ever run this once per lobby session
       if (hasStarted.current) return
       hasStarted.current = true
-
       setCapturedEvent(gameEvent)
       setStarting(true)
+      setStartPending(false)
 
-      // Clear any previous timer just in case
       if (startTimerRef.current) clearTimeout(startTimerRef.current)
-
       startTimerRef.current = setTimeout(() => {
         onGameStartRef.current?.(gameEvent.theme, gameEvent.synopsis)
       }, 6500)
     }
 
     if (gameEvent.type === 'GAME_RESET') {
-      // Reset everything including the guard so Play Again works
       hasStarted.current = false
       if (startTimerRef.current) clearTimeout(startTimerRef.current)
       setStarting(false)
+      setStartPending(false)
       setCapturedEvent(null)
       setStartError('')
     }
 
-    // Cleanup timer on unmount
     return () => {
       if (startTimerRef.current) clearTimeout(startTimerRef.current)
     }
   }, [gameEvent])
 
   const handleStartGame = async () => {
+    if (startPending || hasStarted.current || starting) return
+
+    setStartPending(true)
     setStartError('')
+
     try {
-      await axios.post(`/api/game/${roomData.roomCode}/start`, { playerId: playerData.playerId })
+      const res = await axios.post(`/api/game/${roomData.roomCode}/start`, { playerId: playerData.playerId })
+      if (res.data?.status === 'already-started') {
+        setStarting(true)
+        setStartPending(false)
+      }
     } catch (e) {
       setStartError(e.response?.data?.error || e.message)
+      setStartPending(false)
     }
   }
 
@@ -86,7 +92,7 @@ export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart
   }
 
   const canStart = displayPlayers.length >= MIN_PLAYERS
-  const waiting  = MIN_PLAYERS - displayPlayers.length
+  const waiting = MIN_PLAYERS - displayPlayers.length
 
   const initialSpectators = (roomData?.spectatorIds || []).map(id => ({
     spectatorId: id,
@@ -97,6 +103,7 @@ export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart
   return (
     <div className={styles.container}>
       <LobbyGame players={displayPlayers} />
+
       {starting && capturedEvent && (
         <GameStartingOverlay
           theme={capturedEvent.theme}
@@ -112,17 +119,17 @@ export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart
 
           <div className={styles.shareRow}>
             <button className={styles.copyBtn} onClick={() => navigator.clipboard.writeText(roomData?.roomCode)}>
-              📋 Copy Code
+              Copy Code
             </button>
             <button className={`${styles.copyBtn} ${styles.shareLink}`} onClick={handleCopyLink}>
-              {copied ? '✅ Link Copied!' : '🔗 Share Link'}
+              {copied ? 'Link Copied!' : 'Share Link'}
             </button>
             <button
               className={`${styles.copyBtn} ${showQR ? styles.qrActive : ''}`}
               onClick={() => setShowQR(v => !v)}
               title="Show QR code"
             >
-              {showQR ? '❌ Hide QR' : '📷 QR Code'}
+              {showQR ? 'Hide QR' : 'QR Code'}
             </button>
           </div>
 
@@ -137,16 +144,16 @@ export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart
             onClick={toggleMute}
             title={isMuted ? 'Unmute sounds' : 'Mute sounds'}
           >
-            {isMuted ? '🔇 Muted' : '🔊 Sound On'}
+            {isMuted ? 'Muted' : 'Sound On'}
           </button>
         </div>
 
         <div className={styles.players}>
           <div className={styles.playersHeader}>
-            Players — {displayPlayers.length} / {roomData?.maxPlayers}
+            Players - {displayPlayers.length} / {roomData?.maxPlayers}
             {liveSpectatorCount > 0 && (
               <span className={styles.spectatorBadge}>
-                &nbsp;· 👁 {liveSpectatorCount} watching
+                {' '}· Watchers {liveSpectatorCount}
               </span>
             )}
           </div>
@@ -156,18 +163,19 @@ export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart
               <span className={styles.avatar}>{p.playerName?.[0]?.toUpperCase() ?? '?'}</span>
               <span className={styles.playerName}>
                 {p.playerName}
-                {p.isHost && <span className={styles.hostBadge}> 👑</span>}
+                {p.isHost && <span className={styles.hostBadge}> Host</span>}
                 {p.playerId === playerData?.playerId && <span className={styles.youBadge}> (you)</span>}
               </span>
             </div>
           ))}
 
           {initialSpectators.length > 0 && (
-            <div className={styles.spectatorDivider}>── watching ──</div>
+            <div className={styles.spectatorDivider}>watching</div>
           )}
+
           {initialSpectators.map(s => (
             <div key={s.spectatorId} className={`${styles.playerRow} ${styles.spectatorRow}`}>
-              <span className={styles.avatar} style={{ opacity: 0.35 }}>👁</span>
+              <span className={styles.avatar} style={{ opacity: 0.35 }}>W</span>
               <span className={styles.playerName} style={{ opacity: 0.35 }}>
                 {s.spectatorName}
                 {s.spectatorId === playerData?.playerId && <span className={styles.youBadge}> (you)</span>}
@@ -177,19 +185,28 @@ export default function LobbyScreen({ roomData, playerData, onLeave, onGameStart
 
           {!canStart && waiting > 0 && (
             <div className={styles.waitingHint}>
-              Waiting for {waiting} more player{waiting > 1 ? 's' : ''}...<br />
-              <span className={styles.waitingSub}>Share the link or QR above ⬆️</span>
+              Waiting for {waiting} more player{waiting > 1 ? 's' : ''}...
+              <br />
+              <span className={styles.waitingSub}>Share the link or QR above</span>
             </div>
           )}
         </div>
 
         {playerData?.isHost && !playerData?.isSpectator && (
           <>
-            <button className="verdict-btn verdict-btn-primary" disabled={!canStart} onClick={handleStartGame}>
-              {canStart ? '🚀 Start Game' : `Need ${waiting} more player${waiting > 1 ? 's' : ''}`}
+            <button
+              className="verdict-btn verdict-btn-primary"
+              disabled={!canStart || startPending || starting}
+              onClick={handleStartGame}
+            >
+              {canStart
+                ? (startPending || starting ? 'Starting...' : 'Start Game')
+                : `Need ${waiting} more player${waiting > 1 ? 's' : ''}`}
             </button>
             {startError && (
-              <p style={{ color: '#e63946', fontSize: '12px', marginTop: '6px', textAlign: 'center' }}>⚠️ {startError}</p>
+              <p style={{ color: '#e63946', fontSize: '12px', marginTop: '6px', textAlign: 'center' }}>
+                {startError}
+              </p>
             )}
           </>
         )}
